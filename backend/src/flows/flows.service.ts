@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlowDto } from './dto/create-flow.dto';
+import { UpdateFlowDto } from './dto/update-flow.dto';
 
 @Injectable()
 export class FlowsService {
@@ -14,10 +15,16 @@ export class FlowsService {
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.flow.findUnique({
+  async findOne(id: string) {
+    const flow = await this.prisma.flow.findUnique({
       where: { id },
     });
+
+    if (!flow) {
+      throw new NotFoundException(`Flow with id ${id} not found`);
+    }
+
+    return flow;
   }
 
   create(createFlowDto: CreateFlowDto) {
@@ -30,4 +37,21 @@ export class FlowsService {
       },
     });
   }
+
+  async update(id: string, updateFlowDto: UpdateFlowDto) {
+    await this.findOne(id);
+
+    return this.prisma.flow.update({
+      where: { id },
+      data: updateFlowDto,
+    });
+  }
+
+  async remove(id: string) {
+    await this.findOne(id);
+
+  return this.prisma.flow.delete({
+    where: { id },
+  });
+}
 }

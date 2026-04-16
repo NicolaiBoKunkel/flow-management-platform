@@ -72,6 +72,33 @@ export default function Home() {
     }
   }
 
+  async function handleDelete(id: string) {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this flow?',
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`http://localhost:3001/flows/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        setErrorMessage('Failed to delete flow.');
+        return;
+      }
+
+      setSuccessMessage('Flow deleted successfully.');
+      await fetchFlows();
+    } catch {
+      setErrorMessage('Could not connect to the server.');
+    }
+  }
+
   return (
     <main className="p-8">
       <h1 className="text-2xl font-bold mb-6">Flow Management Platform</h1>
@@ -79,13 +106,8 @@ export default function Home() {
       <form onSubmit={handleSubmit} className="mb-8 space-y-4">
         <h2 className="text-xl font-semibold">Create Flow</h2>
 
-        {successMessage && (
-          <p className="text-green-600">{successMessage}</p>
-        )}
-
-        {errorMessage && (
-          <p className="text-red-600">{errorMessage}</p>
-        )}
+        {successMessage && <p className="text-green-600">{successMessage}</p>}
+        {errorMessage && <p className="text-red-600">{errorMessage}</p>}
 
         <input
           className="border p-2 w-full"
@@ -138,15 +160,24 @@ export default function Home() {
                 <h3 className="font-medium">
                   <Link
                     href={`/flows/${flow.id}`}
-                    className="text-blue-600 underline">{flow.title}
+                    className="text-blue-600 underline"
+                  >
+                    {flow.title}
                   </Link>
                 </h3>
-        
+
                 <p className="text-sm text-gray-600">
                   {flow.status} | {flow.visibility}
                 </p>
 
                 {flow.description && <p>{flow.description}</p>}
+
+                <button
+                  onClick={() => handleDelete(flow.id)}
+                  className="mt-3 bg-red-500 text-white px-3 py-1 rounded"
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>
