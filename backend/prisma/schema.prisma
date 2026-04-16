@@ -6,12 +6,24 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FlowVisibility {
+  private
+  shared
+  public
+}
+
+enum FlowStatus {
+  draft
+  published
+  archived
+}
+
 model Flow {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   title       String
   description String?
-  visibility  String
-  status      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  visibility  FlowVisibility
+  status      FlowStatus
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
