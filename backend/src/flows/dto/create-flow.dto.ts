@@ -1,4 +1,11 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export enum FlowVisibility {
   PRIVATE = 'private',
@@ -15,10 +22,13 @@ export enum FlowStatus {
 export class CreateFlowDto {
   @IsString()
   @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(100)
   title!: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @IsEnum(FlowVisibility)

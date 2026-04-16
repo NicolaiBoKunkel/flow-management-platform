@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type Flow = {
   id: string;
@@ -16,6 +17,8 @@ export default function Home() {
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState('private');
   const [status, setStatus] = useState('draft');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   async function fetchFlows() {
     const res = await fetch('http://localhost:3001/flows');
@@ -30,36 +33,59 @@ export default function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    await fetch('http://localhost:3001/flows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title,
-        description,
-        visibility,
-        status,
-      }),
-    });
+    setSuccessMessage('');
+    setErrorMessage('');
 
-    // reset form
-    setTitle('');
-    setDescription('');
-    setVisibility('private');
-    setStatus('draft');
+    try {
+      const res = await fetch('http://localhost:3001/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          visibility,
+          status,
+        }),
+      });
 
-    // refresh list
-    fetchFlows();
+      if (!res.ok) {
+        const errorData = await res.json();
+
+        if (Array.isArray(errorData.message)) {
+          setErrorMessage(errorData.message.join(', '));
+        } else {
+          setErrorMessage('Failed to create flow.');
+        }
+
+        return;
+      }
+
+      setTitle('');
+      setDescription('');
+      setVisibility('private');
+      setStatus('draft');
+      setSuccessMessage('Flow created successfully.');
+
+      await fetchFlows();
+    } catch {
+      setErrorMessage('Could not connect to the server.');
+    }
   }
 
   return (
     <main className="p-8">
-      <h1 className="text-2xl font-bold mb-6">
-        Flow Management Platform
-      </h1>
+      <h1 className="text-2xl font-bold mb-6">Flow Management Platform</h1>
 
-      {/* FORM */}
       <form onSubmit={handleSubmit} className="mb-8 space-y-4">
         <h2 className="text-xl font-semibold">Create Flow</h2>
+
+        {successMessage && (
+          <p className="text-green-600">{successMessage}</p>
+        )}
+
+        {errorMessage && (
+          <p className="text-red-600">{errorMessage}</p>
+        )}
 
         <input
           className="border p-2 w-full"
@@ -95,12 +121,11 @@ export default function Home() {
           <option value="archived">Archived</option>
         </select>
 
-        <button className="bg-blue-500 text-white px-4 py-2">
+        <button className="bg-blue-500 text-white px-4 py-2 rounded">
           Create Flow
         </button>
       </form>
 
-      {/* LIST */}
       <section>
         <h2 className="text-xl font-semibold mb-4">Flows</h2>
 
@@ -110,10 +135,17 @@ export default function Home() {
           <ul className="space-y-4">
             {flows.map((flow) => (
               <li key={flow.id} className="border rounded p-4">
-                <h3 className="font-medium">{flow.title}</h3>
+                <h3 className="font-medium">
+                  <Link
+                    href={`/flows/${flow.id}`}
+                    className="text-blue-600 underline">{flow.title}
+                  </Link>
+                </h3>
+        
                 <p className="text-sm text-gray-600">
                   {flow.status} | {flow.visibility}
                 </p>
+
                 {flow.description && <p>{flow.description}</p>}
               </li>
             ))}

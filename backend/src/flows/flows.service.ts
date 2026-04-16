@@ -14,6 +14,12 @@ export class FlowsService {
     });
   }
 
+  findOne(id: string) {
+    return this.prisma.flow.findUnique({
+      where: { id },
+    });
+  }
+
   create(createFlowDto: CreateFlowDto) {
     return this.prisma.flow.create({
       data: {
