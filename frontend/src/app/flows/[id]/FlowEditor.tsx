@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -50,6 +50,49 @@ function mapDomainTypeToReactFlowType(type: DomainNodeType): string {
   }
 }
 
+function getNodeStyle(
+  nodeType: DomainNodeType,
+  isSelected: boolean,
+): React.CSSProperties {
+  const baseStyle: React.CSSProperties = {
+    borderRadius: '12px',
+    padding: '10px 14px',
+    border: '2px solid',
+    fontWeight: 600,
+    minWidth: 120,
+    textAlign: 'center',
+    boxShadow: isSelected
+      ? '0 0 0 4px rgba(59, 130, 246, 0.25)'
+      : '0 1px 3px rgba(0, 0, 0, 0.12)',
+    transition: 'all 0.15s ease',
+  };
+
+  switch (nodeType) {
+    case 'start':
+      return {
+        ...baseStyle,
+        backgroundColor: '#dcfce7',
+        borderColor: isSelected ? '#2563eb' : '#16a34a',
+        color: '#166534',
+      };
+    case 'end':
+      return {
+        ...baseStyle,
+        backgroundColor: '#f3e8ff',
+        borderColor: isSelected ? '#2563eb' : '#9333ea',
+        color: '#6b21a8',
+      };
+    case 'question':
+    default:
+      return {
+        ...baseStyle,
+        backgroundColor: '#dbeafe',
+        borderColor: isSelected ? '#2563eb' : '#2563eb',
+        color: '#1e3a8a',
+      };
+  }
+}
+
 function createNode(
   nodeType: DomainNodeType,
   index: number,
@@ -72,6 +115,7 @@ function createNode(
             : `Question ${index + 1}`),
       nodeType,
     },
+    style: getNodeStyle(nodeType, false),
   };
 }
 
@@ -86,12 +130,14 @@ export default function FlowEditor({
         type: 'input',
         position: { x: 100, y: 100 },
         data: { label: 'Start', nodeType: 'start' },
+        style: getNodeStyle('start', false),
       },
       {
         id: '2',
         type: 'default',
         position: { x: 300, y: 100 },
         data: { label: 'Question', nodeType: 'question' },
+        style: getNodeStyle('question', false),
       },
     ],
     [],
@@ -112,6 +158,7 @@ export default function FlowEditor({
         label: node.label,
         nodeType: node.type,
       },
+      style: getNodeStyle(node.type, false),
     }));
   }, [initialGraph, fallbackNodes]);
 
@@ -132,9 +179,24 @@ export default function FlowEditor({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [nodeLabel, setNodeLabel] = useState('');
+  const [selectedNodeType, setSelectedNodeType] =
+    useState<DomainNodeType>('question');
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        const nodeType = (node.data?.nodeType as DomainNodeType) ?? 'question';
+
+        return {
+          ...node,
+          style: getNodeStyle(nodeType, node.id === selectedNodeId),
+        };
+      }),
+    );
+  }, [selectedNodeId, setNodes]);
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -145,13 +207,15 @@ export default function FlowEditor({
 
   function handleAddNode(nodeType: DomainNodeType) {
     const newNode = createNode(nodeType, nodes.length);
-
     setNodes((nds) => [...nds, newNode]);
   }
 
   function handleNodeClick(_: React.MouseEvent, node: Node) {
     setSelectedNodeId(node.id);
-    setNodeLabel(String(node.data.label ?? ''));
+    setNodeLabel(String(node.data?.label ?? ''));
+    setSelectedNodeType(
+      (node.data?.nodeType as DomainNodeType) ?? 'question',
+    );
   }
 
   function handleUpdateLabel() {
@@ -172,6 +236,28 @@ export default function FlowEditor({
     );
   }
 
+  function handleUpdateNodeType(newType: DomainNodeType) {
+    if (!selectedNodeId) return;
+
+    setSelectedNodeType(newType);
+
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              type: mapDomainTypeToReactFlowType(newType),
+              data: {
+                ...node.data,
+                nodeType: newType,
+              },
+              style: getNodeStyle(newType, true),
+            }
+          : node,
+      ),
+    );
+  }
+
   function handleDeleteNode() {
     if (!selectedNodeId) return;
 
@@ -186,6 +272,7 @@ export default function FlowEditor({
 
     setSelectedNodeId(null);
     setNodeLabel('');
+    setSelectedNodeType('question');
   }
 
   async function handleSaveFlow() {
@@ -251,21 +338,21 @@ export default function FlowEditor({
       <div className="mb-4 flex flex-wrap gap-2">
         <button
           onClick={() => handleAddNode('start')}
-          className="bg-emerald-700 text-white px-4 py-2 rounded"
+          className="rounded bg-emerald-700 px-4 py-2 text-white"
         >
           Add Start Node
         </button>
 
         <button
           onClick={() => handleAddNode('question')}
-          className="bg-green-600 text-white px-4 py-2 rounded"
+          className="rounded bg-green-600 px-4 py-2 text-white"
         >
           Add Question Node
         </button>
 
         <button
           onClick={() => handleAddNode('end')}
-          className="bg-purple-600 text-white px-4 py-2 rounded"
+          className="rounded bg-purple-600 px-4 py-2 text-white"
         >
           Add End Node
         </button>
@@ -273,7 +360,7 @@ export default function FlowEditor({
         <button
           onClick={handleSaveFlow}
           disabled={isSaving}
-          className="bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
+          className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
         >
           {isSaving ? 'Saving...' : 'Save Flow'}
         </button>
@@ -283,7 +370,9 @@ export default function FlowEditor({
 
       {validationErrors.length > 0 && (
         <div className="mb-4 rounded border border-red-300 bg-red-50 p-4">
-          <h3 className="mb-2 font-semibold text-red-700">Flow validation errors</h3>
+          <h3 className="mb-2 font-semibold text-red-700">
+            Flow validation errors
+          </h3>
           <ul className="list-disc pl-5 text-red-700">
             {validationErrors.map((error, index) => (
               <li key={index}>{error}</li>
@@ -307,26 +396,44 @@ export default function FlowEditor({
       </div>
 
       {selectedNodeId && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-3">
           <h3 className="text-lg font-semibold">Edit Selected Node</h3>
 
-          <input
-            className="border p-2 w-full"
-            value={nodeLabel}
-            onChange={(e) => setNodeLabel(e.target.value)}
-            placeholder="Node label"
-          />
+          <div>
+            <label className="mb-1 block text-sm font-medium">Node label</label>
+            <input
+              className="w-full border p-2"
+              value={nodeLabel}
+              onChange={(e) => setNodeLabel(e.target.value)}
+              placeholder="Node label"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Node type</label>
+            <select
+              className="w-full border p-2"
+              value={selectedNodeType}
+              onChange={(e) =>
+                handleUpdateNodeType(e.target.value as DomainNodeType)
+              }
+            >
+              <option value="start">Start</option>
+              <option value="question">Question</option>
+              <option value="end">End</option>
+            </select>
+          </div>
 
           <button
             onClick={handleUpdateLabel}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
+            className="rounded bg-blue-600 px-4 py-2 text-white"
           >
             Update Label
           </button>
 
           <button
             onClick={handleDeleteNode}
-            className="bg-red-600 text-white px-4 py-2 rounded"
+            className="rounded bg-red-600 px-4 py-2 text-white"
           >
             Delete Node
           </button>
