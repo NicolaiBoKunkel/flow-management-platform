@@ -5,7 +5,7 @@ import FlowEditor from './FlowEditor';
 type FlowGraph = {
   nodes: {
     id: string;
-    type?: string;
+    type: 'start' | 'question' | 'end';
     label: string;
     position: {
       x: number;

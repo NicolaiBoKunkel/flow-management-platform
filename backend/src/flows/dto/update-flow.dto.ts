@@ -33,7 +33,7 @@ export class UpdateFlowDto {
   graph?: {
     nodes: {
       id: string;
-      type?: string;
+      type: 'start' | 'question' | 'end';
       label: string;
       position: {
         x: number;

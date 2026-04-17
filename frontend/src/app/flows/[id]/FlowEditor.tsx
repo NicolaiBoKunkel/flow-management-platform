@@ -13,10 +13,12 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
+type DomainNodeType = 'start' | 'question' | 'end';
+
 type FlowGraph = {
   nodes: {
     id: string;
-    type?: string;
+    type: DomainNodeType;
     label: string;
     position: {
       x: number;
@@ -36,6 +38,43 @@ type FlowEditorProps = {
   initialGraph?: FlowGraph | null;
 };
 
+function mapDomainTypeToReactFlowType(type: DomainNodeType): string {
+  switch (type) {
+    case 'start':
+      return 'input';
+    case 'end':
+      return 'output';
+    case 'question':
+    default:
+      return 'default';
+  }
+}
+
+function createNode(
+  nodeType: DomainNodeType,
+  index: number,
+  label?: string,
+): Node {
+  return {
+    id: crypto.randomUUID(),
+    type: mapDomainTypeToReactFlowType(nodeType),
+    position: {
+      x: 150 + index * 50,
+      y: 150 + index * 50,
+    },
+    data: {
+      label:
+        label ??
+        (nodeType === 'start'
+          ? 'Start'
+          : nodeType === 'end'
+            ? 'End'
+            : `Question ${index + 1}`),
+      nodeType,
+    },
+  };
+}
+
 export default function FlowEditor({
   flowId,
   initialGraph,
@@ -46,13 +85,13 @@ export default function FlowEditor({
         id: '1',
         type: 'input',
         position: { x: 100, y: 100 },
-        data: { label: 'Start' },
+        data: { label: 'Start', nodeType: 'start' },
       },
       {
         id: '2',
         type: 'default',
         position: { x: 300, y: 100 },
-        data: { label: 'Question' },
+        data: { label: 'Question', nodeType: 'question' },
       },
     ],
     [],
@@ -67,10 +106,11 @@ export default function FlowEditor({
 
     return initialGraph.nodes.map((node) => ({
       id: node.id,
-      type: node.type ?? 'default',
+      type: mapDomainTypeToReactFlowType(node.type),
       position: node.position,
       data: {
         label: node.label,
+        nodeType: node.type,
       },
     }));
   }, [initialGraph, fallbackNodes]);
@@ -94,6 +134,7 @@ export default function FlowEditor({
   const [nodeLabel, setNodeLabel] = useState('');
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -102,18 +143,8 @@ export default function FlowEditor({
     [setEdges],
   );
 
-  function handleAddNode() {
-    const newNode: Node = {
-      id: crypto.randomUUID(),
-      type: 'default',
-      position: {
-        x: 150 + nodes.length * 50,
-        y: 150 + nodes.length * 50,
-      },
-      data: {
-        label: `New Node ${nodes.length + 1}`,
-      },
-    };
+  function handleAddNode(nodeType: DomainNodeType) {
+    const newNode = createNode(nodeType, nodes.length);
 
     setNodes((nds) => [...nds, newNode]);
   }
@@ -160,12 +191,13 @@ export default function FlowEditor({
   async function handleSaveFlow() {
     setIsSaving(true);
     setMessage('');
+    setValidationErrors([]);
 
     try {
       const graph = {
         nodes: nodes.map((node) => ({
           id: node.id,
-          type: node.type ?? 'default',
+          type: (node.data?.nodeType as DomainNodeType) ?? 'question',
           label: String(node.data?.label ?? ''),
           position: {
             x: node.position.x,
@@ -189,13 +221,26 @@ export default function FlowEditor({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save flow');
+        const errorData = await response.json();
+
+        if (Array.isArray(errorData.errors)) {
+          setValidationErrors(errorData.errors);
+        } else if (typeof errorData.message === 'string') {
+          setValidationErrors([errorData.message]);
+        } else {
+          setValidationErrors(['Kunne ikke gemme flow graph.']);
+        }
+
+        setMessage('');
+        return;
       }
 
       setMessage('Flow graph gemt');
+      setValidationErrors([]);
     } catch (error) {
       console.error('Error saving flow graph:', error);
-      setMessage('Kunne ikke gemme flow graph');
+      setValidationErrors(['Der opstod en uventet fejl ved gemning.']);
+      setMessage('');
     } finally {
       setIsSaving(false);
     }
@@ -203,12 +248,26 @@ export default function FlowEditor({
 
   return (
     <div>
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
-          onClick={handleAddNode}
+          onClick={() => handleAddNode('start')}
+          className="bg-emerald-700 text-white px-4 py-2 rounded"
+        >
+          Add Start Node
+        </button>
+
+        <button
+          onClick={() => handleAddNode('question')}
           className="bg-green-600 text-white px-4 py-2 rounded"
         >
-          Add Node
+          Add Question Node
+        </button>
+
+        <button
+          onClick={() => handleAddNode('end')}
+          className="bg-purple-600 text-white px-4 py-2 rounded"
+        >
+          Add End Node
         </button>
 
         <button
@@ -221,6 +280,17 @@ export default function FlowEditor({
       </div>
 
       {message && <p className="mb-4">{message}</p>}
+
+      {validationErrors.length > 0 && (
+        <div className="mb-4 rounded border border-red-300 bg-red-50 p-4">
+          <h3 className="mb-2 font-semibold text-red-700">Flow validation errors</h3>
+          <ul className="list-disc pl-5 text-red-700">
+            {validationErrors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div style={{ width: '100%', height: '500px' }}>
         <ReactFlow
