@@ -399,51 +399,55 @@ export default function FlowEditor({
   }
 
   return (
-    <div>
-      <div className="mb-2 flex flex-wrap gap-2">
-        <button
-          onClick={() => handleAddNode('start')}
-          disabled={hasStartNode}
-          className="rounded bg-emerald-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Add Start Node
-        </button>
+    <div className="space-y-4">
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => handleAddNode('start')}
+            disabled={hasStartNode}
+            className="rounded bg-emerald-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Add Start Node
+          </button>
 
-        <button
-          onClick={() => handleAddNode('question')}
-          className="rounded bg-green-600 px-4 py-2 text-white"
-        >
-          Add Question Node
-        </button>
+          <button
+            onClick={() => handleAddNode('question')}
+            className="rounded bg-green-600 px-4 py-2 text-white"
+          >
+            Add Question Node
+          </button>
 
-        <button
-          onClick={() => handleAddNode('end')}
-          className="rounded bg-purple-600 px-4 py-2 text-white"
-        >
-          Add End Node
-        </button>
+          <button
+            onClick={() => handleAddNode('end')}
+            className="rounded bg-purple-600 px-4 py-2 text-white"
+          >
+            Add End Node
+          </button>
 
-        <button
-          onClick={handleSaveFlow}
-          disabled={isSaving}
-          className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {isSaving ? 'Saving...' : 'Save Flow'}
-        </button>
+          <button
+            onClick={handleSaveFlow}
+            disabled={isSaving}
+            className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save Flow'}
+          </button>
+        </div>
+
+        <p className="mt-3 text-sm text-neutral-400">
+          A flow can only contain one start node.
+        </p>
       </div>
 
-      <p className="mb-4 text-sm text-gray-600">
-        A flow can only contain one start node.
-      </p>
-
-      {message && <p className="mb-4">{message}</p>}
+      {message && (
+        <div className="rounded-lg border border-green-800 bg-green-950 p-3 text-green-300">
+          {message}
+        </div>
+      )}
 
       {validationErrors.length > 0 && (
-        <div className="mb-4 rounded border border-red-300 bg-red-50 p-4">
-          <h3 className="mb-2 font-semibold text-red-700">
-            Flow validation errors
-          </h3>
-          <ul className="list-disc pl-5 text-red-700">
+        <div className="rounded-lg border border-red-800 bg-red-950 p-4 text-red-300">
+          <h3 className="mb-2 font-semibold">Flow validation errors</h3>
+          <ul className="list-disc pl-5">
             {validationErrors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}
@@ -451,95 +455,126 @@ export default function FlowEditor({
         </div>
       )}
 
-      <div style={{ width: '100%', height: '500px' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={handleNodeClick}
-          onEdgeClick={handleEdgeClick}
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </div>
-
-      {selectedNodeId && (
-        <div className="mt-4 space-y-3">
-          <h3 className="text-lg font-semibold">Edit Selected Node</h3>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Node label</label>
-            <input
-              className="w-full border p-2"
-              value={nodeLabel}
-              onChange={(e) => setNodeLabel(e.target.value)}
-              placeholder="Node label"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Node type</label>
-            <select
-              className="w-full border p-2"
-              value={selectedNodeType}
-              onChange={(e) =>
-                handleUpdateNodeType(e.target.value as DomainNodeType)
-              }
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 shadow-sm">
+          <div className="h-[650px] w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
+              fitView
             >
-              <option value="start">Start</option>
-              <option value="question">Question</option>
-              <option value="end">End</option>
-            </select>
+              <Background color="#525252" gap={16} />
+              <Controls />
+            </ReactFlow>
           </div>
-
-          <button
-            onClick={handleUpdateLabel}
-            className="rounded bg-blue-600 px-4 py-2 text-white"
-          >
-            Update Label
-          </button>
-
-          <button
-            onClick={handleDeleteNode}
-            className="rounded bg-red-600 px-4 py-2 text-white"
-          >
-            Delete Node
-          </button>
         </div>
-      )}
 
-      {selectedEdgeId && (
-        <div className="mt-4 space-y-3">
-          <h3 className="text-lg font-semibold">Edit Selected Edge</h3>
+        <aside className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold">Properties</h2>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Edge label</label>
-            <input
-              className="w-full border p-2"
-              value={edgeLabel}
-              onChange={(e) => setEdgeLabel(e.target.value)}
-              placeholder="e.g. Yes / No"
-            />
-          </div>
+          {!selectedNodeId && !selectedEdgeId && (
+            <div className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400">
+              Select a node or an edge to edit its properties.
+            </div>
+          )}
 
-          <button
-            onClick={handleUpdateEdgeLabel}
-            className="rounded bg-blue-600 px-4 py-2 text-white"
-          >
-            Update Edge Label
-          </button>
+          {selectedNodeId && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">Selected Node</h3>
+                <p className="text-sm text-neutral-500">ID: {selectedNodeId}</p>
+              </div>
 
-          <button
-            onClick={handleDeleteEdge}
-            className="rounded bg-red-600 px-4 py-2 text-white"
-          >
-            Delete Edge
-          </button>
-        </div>
-      )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Node label
+                </label>
+                <input
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={nodeLabel}
+                  onChange={(e) => setNodeLabel(e.target.value)}
+                  placeholder="Node label"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Node type
+                </label>
+                <select
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={selectedNodeType}
+                  onChange={(e) =>
+                    handleUpdateNodeType(e.target.value as DomainNodeType)
+                  }
+                >
+                  <option value="start">Start</option>
+                  <option value="question">Question</option>
+                  <option value="end">End</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleUpdateLabel}
+                  className="rounded bg-blue-600 px-4 py-2 text-white"
+                >
+                  Update Node Label
+                </button>
+
+                <button
+                  onClick={handleDeleteNode}
+                  className="rounded bg-red-600 px-4 py-2 text-white"
+                >
+                  Delete Node
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedEdgeId && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">Selected Edge</h3>
+                <p className="text-sm text-neutral-500">ID: {selectedEdgeId}</p>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Edge label
+                </label>
+                <input
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={edgeLabel}
+                  onChange={(e) => setEdgeLabel(e.target.value)}
+                  placeholder="e.g. Yes / No"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleUpdateEdgeLabel}
+                  className="rounded bg-blue-600 px-4 py-2 text-white"
+                >
+                  Update Edge Label
+                </button>
+
+                <button
+                  onClick={handleDeleteEdge}
+                  className="rounded bg-red-600 px-4 py-2 text-white"
+                >
+                  Delete Edge
+                </button>
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
