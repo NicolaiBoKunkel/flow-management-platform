@@ -178,12 +178,22 @@ export default function FlowEditor({
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [nodeLabel, setNodeLabel] = useState('');
+  const [edgeLabel, setEdgeLabel] = useState('');
   const [selectedNodeType, setSelectedNodeType] =
     useState<DomainNodeType>('question');
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const startNodeCount = useMemo(() => {
+    return nodes.filter(
+      (node) => (node.data?.nodeType as DomainNodeType) === 'start',
+    ).length;
+  }, [nodes]);
+
+  const hasStartNode = startNodeCount > 0;
 
   useEffect(() => {
     setNodes((nds) =>
@@ -200,22 +210,44 @@ export default function FlowEditor({
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      setEdges((eds) => addEdge(connection, eds));
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...connection,
+            label: '',
+          },
+          eds,
+        ),
+      );
     },
     [setEdges],
   );
 
   function handleAddNode(nodeType: DomainNodeType) {
+    if (nodeType === 'start' && hasStartNode) {
+      return;
+    }
+
     const newNode = createNode(nodeType, nodes.length);
     setNodes((nds) => [...nds, newNode]);
   }
 
   function handleNodeClick(_: React.MouseEvent, node: Node) {
     setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
+    setEdgeLabel('');
     setNodeLabel(String(node.data?.label ?? ''));
     setSelectedNodeType(
       (node.data?.nodeType as DomainNodeType) ?? 'question',
     );
+  }
+
+  function handleEdgeClick(_: React.MouseEvent, edge: Edge) {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+    setNodeLabel('');
+    setSelectedNodeType('question');
+    setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
   }
 
   function handleUpdateLabel() {
@@ -239,6 +271,16 @@ export default function FlowEditor({
   function handleUpdateNodeType(newType: DomainNodeType) {
     if (!selectedNodeId) return;
 
+    const currentSelectedNode = nodes.find((node) => node.id === selectedNodeId);
+    const currentType =
+      (currentSelectedNode?.data?.nodeType as DomainNodeType) ?? 'question';
+
+    if (newType === 'start' && currentType !== 'start' && hasStartNode) {
+      setValidationErrors(['Flow can only contain one start node.']);
+      return;
+    }
+
+    setValidationErrors([]);
     setSelectedNodeType(newType);
 
     setNodes((nds) =>
@@ -258,6 +300,21 @@ export default function FlowEditor({
     );
   }
 
+  function handleUpdateEdgeLabel() {
+    if (!selectedEdgeId) return;
+
+    setEdges((eds) =>
+      eds.map((edge) =>
+        edge.id === selectedEdgeId
+          ? {
+              ...edge,
+              label: edgeLabel,
+            }
+          : edge,
+      ),
+    );
+  }
+
   function handleDeleteNode() {
     if (!selectedNodeId) return;
 
@@ -273,6 +330,14 @@ export default function FlowEditor({
     setSelectedNodeId(null);
     setNodeLabel('');
     setSelectedNodeType('question');
+  }
+
+  function handleDeleteEdge() {
+    if (!selectedEdgeId) return;
+
+    setEdges((eds) => eds.filter((edge) => edge.id !== selectedEdgeId));
+    setSelectedEdgeId(null);
+    setEdgeLabel('');
   }
 
   async function handleSaveFlow() {
@@ -335,10 +400,11 @@ export default function FlowEditor({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap gap-2">
         <button
           onClick={() => handleAddNode('start')}
-          className="rounded bg-emerald-700 px-4 py-2 text-white"
+          disabled={hasStartNode}
+          className="rounded bg-emerald-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add Start Node
         </button>
@@ -366,6 +432,10 @@ export default function FlowEditor({
         </button>
       </div>
 
+      <p className="mb-4 text-sm text-gray-600">
+        A flow can only contain one start node.
+      </p>
+
       {message && <p className="mb-4">{message}</p>}
 
       {validationErrors.length > 0 && (
@@ -389,6 +459,7 @@ export default function FlowEditor({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
         >
           <Background />
           <Controls />
@@ -436,6 +507,36 @@ export default function FlowEditor({
             className="rounded bg-red-600 px-4 py-2 text-white"
           >
             Delete Node
+          </button>
+        </div>
+      )}
+
+      {selectedEdgeId && (
+        <div className="mt-4 space-y-3">
+          <h3 className="text-lg font-semibold">Edit Selected Edge</h3>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Edge label</label>
+            <input
+              className="w-full border p-2"
+              value={edgeLabel}
+              onChange={(e) => setEdgeLabel(e.target.value)}
+              placeholder="e.g. Yes / No"
+            />
+          </div>
+
+          <button
+            onClick={handleUpdateEdgeLabel}
+            className="rounded bg-blue-600 px-4 py-2 text-white"
+          >
+            Update Edge Label
+          </button>
+
+          <button
+            onClick={handleDeleteEdge}
+            className="rounded bg-red-600 px-4 py-2 text-white"
+          >
+            Delete Edge
           </button>
         </div>
       )}
