@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import EditFlowForm from './EditFlowForm';
+import FlowEditor from './FlowEditor';
 
 type Flow = {
   id: string;
@@ -55,6 +56,11 @@ export default async function FlowDetailPage({
       </p>
 
       <EditFlowForm flow={flow} />
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Flow Editor</h2>
+        <FlowEditor />
+      </div>
     </main>
   );
 }
