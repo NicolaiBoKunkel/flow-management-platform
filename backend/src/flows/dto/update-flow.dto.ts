@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -26,4 +27,24 @@ export class UpdateFlowDto {
   @IsEnum(FlowStatus)
   @IsOptional()
   status?: FlowStatus;
+
+  @IsObject()
+  @IsOptional()
+  graph?: {
+    nodes: {
+      id: string;
+      type?: string;
+      label: string;
+      position: {
+        x: number;
+        y: number;
+      };
+    }[];
+    edges: {
+      id: string;
+      source: string;
+      target: string;
+      label?: string;
+    }[];
+  };
 }

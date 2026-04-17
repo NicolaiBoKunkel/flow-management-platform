@@ -2,12 +2,31 @@ import { notFound } from 'next/navigation';
 import EditFlowForm from './EditFlowForm';
 import FlowEditor from './FlowEditor';
 
+type FlowGraph = {
+  nodes: {
+    id: string;
+    type?: string;
+    label: string;
+    position: {
+      x: number;
+      y: number;
+    };
+  }[];
+  edges: {
+    id: string;
+    source: string;
+    target: string;
+    label?: string;
+  }[];
+};
+
 type Flow = {
   id: string;
   title: string;
   description: string | null;
   visibility: string;
   status: string;
+  graph?: FlowGraph | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -59,7 +78,7 @@ export default async function FlowDetailPage({
 
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4">Flow Editor</h2>
-        <FlowEditor />
+        <FlowEditor flowId={flow.id} initialGraph={flow.graph ?? null} />
       </div>
     </main>
   );

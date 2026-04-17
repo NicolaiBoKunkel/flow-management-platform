@@ -24,6 +24,7 @@ model Flow {
   description String?
   visibility  FlowVisibility
   status      FlowStatus
+  graph       Json?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 }
