@@ -24,6 +24,8 @@ type FlowGraph = {
       x: number;
       y: number;
     };
+    questionText?: string;
+    resultText?: string;
   }[];
   edges: {
     id: string;
@@ -114,6 +116,8 @@ function createNode(
             ? 'End'
             : `Question ${index + 1}`),
       nodeType,
+      questionText: '',
+      resultText: '',
     },
     style: getNodeStyle(nodeType, false),
   };
@@ -129,14 +133,24 @@ export default function FlowEditor({
         id: '1',
         type: 'input',
         position: { x: 100, y: 100 },
-        data: { label: 'Start', nodeType: 'start' },
+        data: {
+          label: 'Start',
+          nodeType: 'start',
+          questionText: '',
+          resultText: '',
+        },
         style: getNodeStyle('start', false),
       },
       {
         id: '2',
         type: 'default',
         position: { x: 300, y: 100 },
-        data: { label: 'Question', nodeType: 'question' },
+        data: {
+          label: 'Question',
+          nodeType: 'question',
+          questionText: '',
+          resultText: '',
+        },
         style: getNodeStyle('question', false),
       },
     ],
@@ -157,6 +171,8 @@ export default function FlowEditor({
       data: {
         label: node.label,
         nodeType: node.type,
+        questionText: node.questionText ?? '',
+        resultText: node.resultText ?? '',
       },
       style: getNodeStyle(node.type, false),
     }));
@@ -180,10 +196,13 @@ export default function FlowEditor({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [nodeLabel, setNodeLabel] = useState('');
+  const [questionText, setQuestionText] = useState('');
+  const [resultText, setResultText] = useState('');
   const [edgeLabel, setEdgeLabel] = useState('');
   const [selectedNodeType, setSelectedNodeType] =
     useState<DomainNodeType>('question');
   const [message, setMessage] = useState('');
+  const [editorMessage, setEditorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
@@ -194,6 +213,11 @@ export default function FlowEditor({
   }, [nodes]);
 
   const hasStartNode = startNodeCount > 0;
+
+  function setLocalEditorFeedback(text: string) {
+    setEditorMessage(text);
+    setMessage('');
+  }
 
   useEffect(() => {
     setNodes((nds) =>
@@ -219,6 +243,8 @@ export default function FlowEditor({
           eds,
         ),
       );
+      setEditorMessage('Edge added in editor. Remember to save the flow.');
+      setMessage('');
     },
     [setEdges],
   );
@@ -230,6 +256,7 @@ export default function FlowEditor({
 
     const newNode = createNode(nodeType, nodes.length);
     setNodes((nds) => [...nds, newNode]);
+    setLocalEditorFeedback('Node added in editor. Remember to save the flow.');
   }
 
   function handleNodeClick(_: React.MouseEvent, node: Node) {
@@ -237,6 +264,8 @@ export default function FlowEditor({
     setSelectedEdgeId(null);
     setEdgeLabel('');
     setNodeLabel(String(node.data?.label ?? ''));
+    setQuestionText(String(node.data?.questionText ?? ''));
+    setResultText(String(node.data?.resultText ?? ''));
     setSelectedNodeType(
       (node.data?.nodeType as DomainNodeType) ?? 'question',
     );
@@ -246,11 +275,13 @@ export default function FlowEditor({
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setNodeLabel('');
+    setQuestionText('');
+    setResultText('');
     setSelectedNodeType('question');
     setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
   }
 
-  function handleUpdateLabel() {
+  function handleUpdateNodeContent() {
     if (!selectedNodeId) return;
 
     setNodes((nds) =>
@@ -261,10 +292,16 @@ export default function FlowEditor({
               data: {
                 ...node.data,
                 label: nodeLabel,
+                questionText,
+                resultText,
               },
             }
           : node,
       ),
+    );
+
+    setLocalEditorFeedback(
+      'Node content updated in editor. Remember to save the flow.',
     );
   }
 
@@ -298,6 +335,10 @@ export default function FlowEditor({
           : node,
       ),
     );
+
+    setLocalEditorFeedback(
+      'Node type updated in editor. Remember to save the flow.',
+    );
   }
 
   function handleUpdateEdgeLabel() {
@@ -312,6 +353,10 @@ export default function FlowEditor({
             }
           : edge,
       ),
+    );
+
+    setLocalEditorFeedback(
+      'Edge label updated in editor. Remember to save the flow.',
     );
   }
 
@@ -329,7 +374,11 @@ export default function FlowEditor({
 
     setSelectedNodeId(null);
     setNodeLabel('');
+    setQuestionText('');
+    setResultText('');
     setSelectedNodeType('question');
+
+    setLocalEditorFeedback('Node deleted in editor. Remember to save the flow.');
   }
 
   function handleDeleteEdge() {
@@ -338,6 +387,8 @@ export default function FlowEditor({
     setEdges((eds) => eds.filter((edge) => edge.id !== selectedEdgeId));
     setSelectedEdgeId(null);
     setEdgeLabel('');
+
+    setLocalEditorFeedback('Edge deleted in editor. Remember to save the flow.');
   }
 
   async function handleSaveFlow() {
@@ -355,6 +406,16 @@ export default function FlowEditor({
             x: node.position.x,
             y: node.position.y,
           },
+          questionText:
+            typeof node.data?.questionText === 'string' &&
+            node.data.questionText.trim() !== ''
+              ? node.data.questionText
+              : undefined,
+          resultText:
+            typeof node.data?.resultText === 'string' &&
+            node.data.resultText.trim() !== ''
+              ? node.data.resultText
+              : undefined,
         })),
         edges: edges.map((edge) => ({
           id: edge.id,
@@ -388,6 +449,7 @@ export default function FlowEditor({
       }
 
       setMessage('Flow graph gemt');
+      setEditorMessage('');
       setValidationErrors([]);
     } catch (error) {
       console.error('Error saving flow graph:', error);
@@ -437,6 +499,12 @@ export default function FlowEditor({
           A flow can only contain one start node.
         </p>
       </div>
+
+      {editorMessage && (
+        <div className="rounded-lg border border-amber-800 bg-amber-950 p-3 text-amber-300">
+          {editorMessage}
+        </div>
+      )}
 
       {message && (
         <div className="rounded-lg border border-green-800 bg-green-950 p-3 text-green-300">
@@ -519,12 +587,40 @@ export default function FlowEditor({
                 </select>
               </div>
 
+              {selectedNodeType === 'question' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-300">
+                    Question text
+                  </label>
+                  <textarea
+                    className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                    value={questionText}
+                    onChange={(e) => setQuestionText(e.target.value)}
+                    placeholder="What should the user be asked?"
+                  />
+                </div>
+              )}
+
+              {selectedNodeType === 'end' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-300">
+                    Result text
+                  </label>
+                  <textarea
+                    className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                    value={resultText}
+                    onChange={(e) => setResultText(e.target.value)}
+                    placeholder="Final recommendation or result shown to the user"
+                  />
+                </div>
+              )}
+
               <div className="flex flex-col gap-2">
                 <button
-                  onClick={handleUpdateLabel}
+                  onClick={handleUpdateNodeContent}
                   className="rounded bg-blue-600 px-4 py-2 text-white"
                 >
-                  Update Node Label
+                  Update Node Content
                 </button>
 
                 <button

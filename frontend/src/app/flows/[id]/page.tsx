@@ -11,6 +11,8 @@ type FlowGraph = {
       x: number;
       y: number;
     };
+    questionText?: string;
+    resultText?: string;
   }[];
   edges: {
     id: string;
