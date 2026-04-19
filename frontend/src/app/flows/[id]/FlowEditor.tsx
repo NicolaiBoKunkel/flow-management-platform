@@ -13,7 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-type DomainNodeType = 'start' | 'question' | 'end';
+type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
 type FlowGraph = {
   nodes: {
@@ -27,6 +27,7 @@ type FlowGraph = {
     introText?: string;
     questionText?: string;
     resultText?: string;
+    infoText?: string;
   }[];
   edges: {
     id: string;
@@ -47,6 +48,8 @@ function mapDomainTypeToReactFlowType(type: DomainNodeType): string {
       return 'input';
     case 'end':
       return 'output';
+    case 'info':
+      return 'default';
     case 'question':
     default:
       return 'default';
@@ -85,6 +88,13 @@ function getNodeStyle(
         borderColor: isSelected ? '#2563eb' : '#9333ea',
         color: '#6b21a8',
       };
+    case 'info':
+      return {
+        ...baseStyle,
+        backgroundColor: '#fef3c7',
+        borderColor: isSelected ? '#2563eb' : '#d97706',
+        color: '#92400e',
+      };
     case 'question':
     default:
       return {
@@ -115,11 +125,14 @@ function createNode(
           ? 'Start'
           : nodeType === 'end'
             ? 'End'
-            : `Question ${index + 1}`),
+            : nodeType === 'info'
+              ? `Info ${index + 1}`
+              : `Question ${index + 1}`),
       nodeType,
       introText: '',
       questionText: '',
       resultText: '',
+      infoText: '',
     },
     style: getNodeStyle(nodeType, false),
   };
@@ -141,6 +154,7 @@ export default function FlowEditor({
           introText: '',
           questionText: '',
           resultText: '',
+          infoText: '',
         },
         style: getNodeStyle('start', false),
       },
@@ -154,6 +168,7 @@ export default function FlowEditor({
           introText: '',
           questionText: '',
           resultText: '',
+          infoText: '',
         },
         style: getNodeStyle('question', false),
       },
@@ -178,6 +193,7 @@ export default function FlowEditor({
         introText: node.introText ?? '',
         questionText: node.questionText ?? '',
         resultText: node.resultText ?? '',
+        infoText: node.infoText ?? '',
       },
       style: getNodeStyle(node.type, false),
     }));
@@ -204,6 +220,7 @@ export default function FlowEditor({
   const [introText, setIntroText] = useState('');
   const [questionText, setQuestionText] = useState('');
   const [resultText, setResultText] = useState('');
+  const [infoText, setInfoText] = useState('');
   const [edgeLabel, setEdgeLabel] = useState('');
   const [selectedNodeType, setSelectedNodeType] =
     useState<DomainNodeType>('question');
@@ -273,9 +290,8 @@ export default function FlowEditor({
     setIntroText(String(node.data?.introText ?? ''));
     setQuestionText(String(node.data?.questionText ?? ''));
     setResultText(String(node.data?.resultText ?? ''));
-    setSelectedNodeType(
-      (node.data?.nodeType as DomainNodeType) ?? 'question',
-    );
+    setInfoText(String(node.data?.infoText ?? ''));
+    setSelectedNodeType((node.data?.nodeType as DomainNodeType) ?? 'question');
   }
 
   function handleEdgeClick(_: React.MouseEvent, edge: Edge) {
@@ -285,6 +301,7 @@ export default function FlowEditor({
     setIntroText('');
     setQuestionText('');
     setResultText('');
+    setInfoText('');
     setSelectedNodeType('question');
     setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
   }
@@ -303,6 +320,7 @@ export default function FlowEditor({
                 introText,
                 questionText,
                 resultText,
+                infoText,
               },
             }
           : node,
@@ -386,6 +404,7 @@ export default function FlowEditor({
     setIntroText('');
     setQuestionText('');
     setResultText('');
+    setInfoText('');
     setSelectedNodeType('question');
 
     setLocalEditorFeedback('Node deleted in editor. Remember to save the flow.');
@@ -430,6 +449,11 @@ export default function FlowEditor({
             typeof node.data?.resultText === 'string' &&
             node.data.resultText.trim() !== ''
               ? node.data.resultText
+              : undefined,
+          infoText:
+            typeof node.data?.infoText === 'string' &&
+            node.data.infoText.trim() !== ''
+              ? node.data.infoText
               : undefined,
         })),
         edges: edges.map((edge) => ({
@@ -492,6 +516,13 @@ export default function FlowEditor({
             className="rounded bg-green-600 px-4 py-2 text-white"
           >
             Add Question Node
+          </button>
+
+          <button
+            onClick={() => handleAddNode('info')}
+            className="rounded bg-amber-600 px-4 py-2 text-white"
+          >
+            Add Info Node
           </button>
 
           <button
@@ -598,6 +629,7 @@ export default function FlowEditor({
                 >
                   <option value="start">Start</option>
                   <option value="question">Question</option>
+                  <option value="info">Info</option>
                   <option value="end">End</option>
                 </select>
               </div>
@@ -626,6 +658,20 @@ export default function FlowEditor({
                     value={questionText}
                     onChange={(e) => setQuestionText(e.target.value)}
                     placeholder="What should the user be asked?"
+                  />
+                </div>
+              )}
+
+              {selectedNodeType === 'info' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-300">
+                    Info text
+                  </label>
+                  <textarea
+                    className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                    value={infoText}
+                    onChange={(e) => setInfoText(e.target.value)}
+                    placeholder="Informational text shown to the user"
                   />
                 </div>
               )}
