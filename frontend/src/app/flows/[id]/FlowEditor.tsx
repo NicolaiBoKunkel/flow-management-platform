@@ -13,130 +13,16 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-type DomainNodeType = 'start' | 'question' | 'end' | 'info';
-
-type FlowGraph = {
-  nodes: {
-    id: string;
-    type: DomainNodeType;
-    label: string;
-    position: {
-      x: number;
-      y: number;
-    };
-    introText?: string;
-    questionText?: string;
-    resultText?: string;
-    infoText?: string;
-  }[];
-  edges: {
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-  }[];
-};
-
-type FlowEditorProps = {
-  flowId: string;
-  initialGraph?: FlowGraph | null;
-};
-
-function mapDomainTypeToReactFlowType(type: DomainNodeType): string {
-  switch (type) {
-    case 'start':
-      return 'input';
-    case 'end':
-      return 'output';
-    case 'info':
-      return 'default';
-    case 'question':
-    default:
-      return 'default';
-  }
-}
-
-function getNodeStyle(
-  nodeType: DomainNodeType,
-  isSelected: boolean,
-): React.CSSProperties {
-  const baseStyle: React.CSSProperties = {
-    borderRadius: '12px',
-    padding: '10px 14px',
-    border: '2px solid',
-    fontWeight: 600,
-    minWidth: 120,
-    textAlign: 'center',
-    boxShadow: isSelected
-      ? '0 0 0 4px rgba(59, 130, 246, 0.25)'
-      : '0 1px 3px rgba(0, 0, 0, 0.12)',
-    transition: 'all 0.15s ease',
-  };
-
-  switch (nodeType) {
-    case 'start':
-      return {
-        ...baseStyle,
-        backgroundColor: '#dcfce7',
-        borderColor: isSelected ? '#2563eb' : '#16a34a',
-        color: '#166534',
-      };
-    case 'end':
-      return {
-        ...baseStyle,
-        backgroundColor: '#f3e8ff',
-        borderColor: isSelected ? '#2563eb' : '#9333ea',
-        color: '#6b21a8',
-      };
-    case 'info':
-      return {
-        ...baseStyle,
-        backgroundColor: '#fef3c7',
-        borderColor: isSelected ? '#2563eb' : '#d97706',
-        color: '#92400e',
-      };
-    case 'question':
-    default:
-      return {
-        ...baseStyle,
-        backgroundColor: '#dbeafe',
-        borderColor: isSelected ? '#2563eb' : '#2563eb',
-        color: '#1e3a8a',
-      };
-  }
-}
-
-function createNode(
-  nodeType: DomainNodeType,
-  index: number,
-  label?: string,
-): Node {
-  return {
-    id: crypto.randomUUID(),
-    type: mapDomainTypeToReactFlowType(nodeType),
-    position: {
-      x: 150 + index * 50,
-      y: 150 + index * 50,
-    },
-    data: {
-      label:
-        label ??
-        (nodeType === 'start'
-          ? 'Start'
-          : nodeType === 'end'
-            ? 'End'
-            : nodeType === 'info'
-              ? `Info ${index + 1}`
-              : `Question ${index + 1}`),
-      nodeType,
-      introText: '',
-      questionText: '',
-      resultText: '',
-      infoText: '',
-    },
-    style: getNodeStyle(nodeType, false),
-  };
-}
+import FlowPropertiesPanel from './FlowPropertiesPanel';
+import type {
+  DomainNodeType,
+  FlowEditorProps,
+} from './flow-editor.types';
+import {
+  createNode,
+  getNodeStyle,
+  mapDomainTypeToReactFlowType,
+} from './flow-editor.utils';
 
 export default function FlowEditor({
   flowId,
@@ -588,163 +474,28 @@ export default function FlowEditor({
           </div>
         </div>
 
-        <aside className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold">Properties</h2>
-
-          {!selectedNodeId && !selectedEdgeId && (
-            <div className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400">
-              Select a node or an edge to edit its properties.
-            </div>
-          )}
-
-          {selectedNodeId && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold">Selected Node</h3>
-                <p className="text-sm text-neutral-500">ID: {selectedNodeId}</p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-300">
-                  Node label
-                </label>
-                <input
-                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                  value={nodeLabel}
-                  onChange={(e) => setNodeLabel(e.target.value)}
-                  placeholder="Node label"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-300">
-                  Node type
-                </label>
-                <select
-                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                  value={selectedNodeType}
-                  onChange={(e) =>
-                    handleUpdateNodeType(e.target.value as DomainNodeType)
-                  }
-                >
-                  <option value="start">Start</option>
-                  <option value="question">Question</option>
-                  <option value="info">Info</option>
-                  <option value="end">End</option>
-                </select>
-              </div>
-
-              {selectedNodeType === 'start' && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-300">
-                    Intro text
-                  </label>
-                  <textarea
-                    className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                    value={introText}
-                    onChange={(e) => setIntroText(e.target.value)}
-                    placeholder="Welcome text or introduction shown before the flow begins"
-                  />
-                </div>
-              )}
-
-              {selectedNodeType === 'question' && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-300">
-                    Question text
-                  </label>
-                  <textarea
-                    className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                    value={questionText}
-                    onChange={(e) => setQuestionText(e.target.value)}
-                    placeholder="What should the user be asked?"
-                  />
-                </div>
-              )}
-
-              {selectedNodeType === 'info' && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-300">
-                    Info text
-                  </label>
-                  <textarea
-                    className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                    value={infoText}
-                    onChange={(e) => setInfoText(e.target.value)}
-                    placeholder="Informational text shown to the user"
-                  />
-                </div>
-              )}
-
-              {selectedNodeType === 'end' && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-300">
-                    Result text
-                  </label>
-                  <textarea
-                    className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                    value={resultText}
-                    onChange={(e) => setResultText(e.target.value)}
-                    placeholder="Final recommendation or result shown to the user"
-                  />
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleUpdateNodeContent}
-                  className="rounded bg-blue-600 px-4 py-2 text-white"
-                >
-                  Update Node Content
-                </button>
-
-                <button
-                  onClick={handleDeleteNode}
-                  className="rounded bg-red-600 px-4 py-2 text-white"
-                >
-                  Delete Node
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedEdgeId && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold">Selected Edge</h3>
-                <p className="text-sm text-neutral-500">ID: {selectedEdgeId}</p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-300">
-                  Edge label
-                </label>
-                <input
-                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                  value={edgeLabel}
-                  onChange={(e) => setEdgeLabel(e.target.value)}
-                  placeholder="e.g. Yes / No"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleUpdateEdgeLabel}
-                  className="rounded bg-blue-600 px-4 py-2 text-white"
-                >
-                  Update Edge Label
-                </button>
-
-                <button
-                  onClick={handleDeleteEdge}
-                  className="rounded bg-red-600 px-4 py-2 text-white"
-                >
-                  Delete Edge
-                </button>
-              </div>
-            </div>
-          )}
-        </aside>
+        <FlowPropertiesPanel
+          selectedNodeId={selectedNodeId}
+          selectedEdgeId={selectedEdgeId}
+          nodeLabel={nodeLabel}
+          setNodeLabel={setNodeLabel}
+          introText={introText}
+          setIntroText={setIntroText}
+          questionText={questionText}
+          setQuestionText={setQuestionText}
+          resultText={resultText}
+          setResultText={setResultText}
+          infoText={infoText}
+          setInfoText={setInfoText}
+          edgeLabel={edgeLabel}
+          setEdgeLabel={setEdgeLabel}
+          selectedNodeType={selectedNodeType}
+          handleUpdateNodeType={handleUpdateNodeType}
+          handleUpdateNodeContent={handleUpdateNodeContent}
+          handleDeleteNode={handleDeleteNode}
+          handleUpdateEdgeLabel={handleUpdateEdgeLabel}
+          handleDeleteEdge={handleDeleteEdge}
+        />
       </div>
     </div>
   );

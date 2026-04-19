@@ -9,12 +9,16 @@ import { UpdateFlowDto } from './dto/update-flow.dto';
 
 type FlowNode = {
   id: string;
-  type: 'start' | 'question' | 'end';
+  type: 'start' | 'question' | 'end' | 'info';
   label: string;
   position: {
     x: number;
     y: number;
   };
+  introText?: string;
+  questionText?: string;
+  resultText?: string;
+  infoText?: string;
 };
 
 type FlowEdge = {
