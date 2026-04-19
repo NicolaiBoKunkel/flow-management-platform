@@ -18,6 +18,12 @@ enum FlowStatus {
   archived
 }
 
+enum FlowSessionStatus {
+  active
+  completed
+  abandoned
+}
+
 model Flow {
   id          String         @id @default(uuid())
   title       String
@@ -27,4 +33,18 @@ model Flow {
   graph       Json?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  sessions    FlowSession[]
+}
+
+model FlowSession {
+  id            String            @id @default(uuid())
+  flowId        String
+  currentNodeId String
+  status        FlowSessionStatus @default(active)
+  context       Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  flow          Flow              @relation(fields: [flowId], references: [id], onDelete: Cascade)
 }
