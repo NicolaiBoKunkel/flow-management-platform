@@ -40,6 +40,7 @@ type SessionResponse = {
   flowId: string;
   status: 'active' | 'completed' | 'abandoned';
   currentNode: FlowNode;
+  canGoBack: boolean;
 };
 
 export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
@@ -48,8 +49,10 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
   const [sessionStatus, setSessionStatus] = useState<
     'active' | 'completed' | 'abandoned' | null
   >(null);
+  const [canGoBack, setCanGoBack] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isGoingBack, setIsGoingBack] = useState(false);
   const [error, setError] = useState('');
 
   const outgoingEdges = useMemo(() => {
@@ -92,6 +95,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         setSessionId(data.sessionId);
         setCurrentNode(data.currentNode);
         setSessionStatus(data.status);
+        setCanGoBack(data.canGoBack);
       } catch (err) {
         console.error('Failed to start flow session:', err);
         setError('An unexpected error occurred while starting play mode.');
@@ -117,9 +121,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(
-            selectedEdgeId ? { selectedEdgeId } : {},
-          ),
+          body: JSON.stringify(selectedEdgeId ? { selectedEdgeId } : {}),
         },
       );
 
@@ -140,11 +142,55 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       const data: SessionResponse = await response.json();
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
+      setCanGoBack(data.canGoBack);
     } catch (err) {
       console.error('Failed to advance flow session:', err);
       setError('An unexpected error occurred while advancing the flow.');
     } finally {
       setIsAdvancing(false);
+    }
+  }
+
+  async function goBack() {
+    if (!sessionId) return;
+
+    setIsGoingBack(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/back`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+
+        if (Array.isArray(errorData?.message)) {
+          setError(errorData.message.join(', '));
+        } else if (typeof errorData?.message === 'string') {
+          setError(errorData.message);
+        } else {
+          setError('Failed to go back in flow session.');
+        }
+
+        return;
+      }
+
+      const data: SessionResponse = await response.json();
+      setCurrentNode(data.currentNode);
+      setSessionStatus(data.status);
+      setCanGoBack(data.canGoBack);
+    } catch (err) {
+      console.error('Failed to go back in flow session:', err);
+      setError('An unexpected error occurred while going back.');
+    } finally {
+      setIsGoingBack(false);
     }
   }
 
@@ -182,13 +228,23 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
   return (
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-sm">
-      <div className="mb-6">
-        <p className="text-sm uppercase tracking-wide text-neutral-400">
-          Session status
-        </p>
-        <p className="mt-1 text-base font-medium text-white">
-          {sessionStatus ?? 'unknown'}
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm uppercase tracking-wide text-neutral-400">
+            Session status
+          </p>
+          <p className="mt-1 text-base font-medium text-white">
+            {sessionStatus ?? 'unknown'}
+          </p>
+        </div>
+
+        <button
+          onClick={goBack}
+          disabled={!canGoBack || isGoingBack || isAdvancing}
+          className="rounded border border-neutral-700 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isGoingBack ? 'Going back...' : 'Back'}
+        </button>
       </div>
 
       <div className="mb-6">
@@ -208,7 +264,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
           <button
             onClick={() => advance()}
-            disabled={isAdvancing}
+            disabled={isAdvancing || isGoingBack}
             className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
           >
             {isAdvancing ? 'Continuing...' : 'Continue'}
@@ -224,7 +280,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
           <button
             onClick={() => advance()}
-            disabled={isAdvancing}
+            disabled={isAdvancing || isGoingBack}
             className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
           >
             {isAdvancing ? 'Continuing...' : 'Continue'}
@@ -243,7 +299,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
               <button
                 key={edge.id}
                 onClick={() => advance(edge.id)}
-                disabled={isAdvancing}
+                disabled={isAdvancing || isGoingBack}
                 className="rounded border border-neutral-700 bg-neutral-950 px-4 py-3 text-left text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {edge.label || 'Continue'}

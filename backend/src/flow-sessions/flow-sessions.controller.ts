@@ -22,4 +22,12 @@ export class FlowSessionsController {
       body?.selectedEdgeId,
     );
   }
+
+  @Post(':sessionId/back')
+  goBack(
+    @Param('flowId') flowId: string,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.flowSessionsService.goBack(flowId, sessionId);
+  }
 }
