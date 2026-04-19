@@ -2,6 +2,14 @@ export type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
 export type QuestionType = 'singleChoice' | 'number' | 'text';
 
+export type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+
+export type EdgeCondition = {
+  kind: 'number';
+  operator: NumberOperator;
+  value: number;
+};
+
 export type FlowGraph = {
   nodes: {
     id: string;
@@ -22,6 +30,7 @@ export type FlowGraph = {
     source: string;
     target: string;
     label?: string;
+    condition?: EdgeCondition;
   }[];
 };
 

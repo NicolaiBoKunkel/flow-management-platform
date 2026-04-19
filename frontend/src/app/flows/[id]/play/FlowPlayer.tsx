@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 
 type DomainNodeType = 'start' | 'question' | 'end' | 'info';
+type QuestionType = 'singleChoice' | 'number' | 'text';
 
 type FlowNode = {
   id: string;
@@ -12,6 +13,7 @@ type FlowNode = {
     x: number;
     y: number;
   };
+  questionType?: QuestionType;
   introText?: string;
   questionText?: string;
   resultText?: string;
@@ -23,6 +25,11 @@ type FlowEdge = {
   source: string;
   target: string;
   label?: string;
+  condition?: {
+    kind: 'number';
+    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+    value: number;
+  };
 };
 
 type FlowGraph = {
@@ -55,6 +62,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isGoingBack, setIsGoingBack] = useState(false);
   const [error, setError] = useState('');
+  const [numericValue, setNumericValue] = useState('');
 
   const outgoingEdges = useMemo(() => {
     if (!graph || !currentNode) {
@@ -97,6 +105,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
       setHasStarted(true);
+      setNumericValue('');
     } catch (err) {
       console.error('Failed to start flow session:', err);
       setError('An unexpected error occurred while starting play mode.');
@@ -105,13 +114,20 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     }
   }
 
-  async function advance(selectedEdgeId?: string) {
+  async function advance(selectedEdgeId?: string, submittedNumericValue?: number) {
     if (!sessionId) return;
 
     setIsAdvancing(true);
     setError('');
 
     try {
+      const body =
+        typeof submittedNumericValue === 'number'
+          ? { numericValue: submittedNumericValue }
+          : selectedEdgeId
+            ? { selectedEdgeId }
+            : {};
+
       const response = await fetch(
         `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/advance`,
         {
@@ -119,7 +135,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(selectedEdgeId ? { selectedEdgeId } : {}),
+          body: JSON.stringify(body),
         },
       );
 
@@ -141,12 +157,24 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
+      setNumericValue('');
     } catch (err) {
       console.error('Failed to advance flow session:', err);
       setError('An unexpected error occurred while advancing the flow.');
     } finally {
       setIsAdvancing(false);
     }
+  }
+
+  async function submitNumericAnswer() {
+    const parsedValue = Number(numericValue);
+
+    if (numericValue.trim() === '' || Number.isNaN(parsedValue)) {
+      setError('Please enter a valid number.');
+      return;
+    }
+
+    await advance(undefined, parsedValue);
   }
 
   async function goBack() {
@@ -184,6 +212,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
+      setNumericValue('');
     } catch (err) {
       console.error('Failed to go back in flow session:', err);
       setError('An unexpected error occurred while going back.');
@@ -313,26 +342,55 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         </div>
       )}
 
-      {currentNode.type === 'question' && (
-        <div className="space-y-6">
-          <p className="text-lg leading-7 text-neutral-100">
-            {currentNode.questionText || currentNode.label}
-          </p>
+      {currentNode.type === 'question' &&
+        currentNode.questionType === 'number' && (
+          <div className="space-y-6">
+            <p className="text-lg leading-7 text-neutral-100">
+              {currentNode.questionText || currentNode.label}
+            </p>
 
-          <div className="flex flex-col gap-3">
-            {outgoingEdges.map((edge) => (
-              <button
-                key={edge.id}
-                onClick={() => advance(edge.id)}
+            <div className="space-y-4">
+              <input
+                type="number"
+                value={numericValue}
+                onChange={(e) => setNumericValue(e.target.value)}
                 disabled={isAdvancing || isGoingBack}
-                className="rounded border border-neutral-700 bg-neutral-950 px-4 py-3 text-left text-white hover:bg-neutral-800 disabled:opacity-50"
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-4 py-3 text-white outline-none transition focus:border-blue-500 disabled:opacity-50"
+                placeholder="Enter a number"
+              />
+
+              <button
+                onClick={submitNumericAnswer}
+                disabled={isAdvancing || isGoingBack}
+                className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
               >
-                {edge.label || 'Continue'}
+                {isAdvancing ? 'Submitting...' : 'Submit'}
               </button>
-            ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+      {currentNode.type === 'question' &&
+        currentNode.questionType !== 'number' && (
+          <div className="space-y-6">
+            <p className="text-lg leading-7 text-neutral-100">
+              {currentNode.questionText || currentNode.label}
+            </p>
+
+            <div className="flex flex-col gap-3">
+              {outgoingEdges.map((edge) => (
+                <button
+                  key={edge.id}
+                  onClick={() => advance(edge.id)}
+                  disabled={isAdvancing || isGoingBack}
+                  className="rounded border border-neutral-700 bg-neutral-950 px-4 py-3 text-left text-white hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {edge.label || 'Continue'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
       {currentNode.type === 'end' && (
         <div className="space-y-6">

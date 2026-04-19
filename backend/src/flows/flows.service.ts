@@ -27,6 +27,11 @@ type FlowEdge = {
   source: string;
   target: string;
   label?: string;
+  condition?: {
+    kind: 'number';
+    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+    value: number;
+  };
 };
 
 type FlowGraph = {
@@ -99,7 +104,10 @@ export class FlowsService {
       if (node.type === 'question') {
         if (!node.questionType) {
           errors.push(`Question node "${node.label}" must have a questionType.`);
-        } else if (node.questionType !== 'singleChoice') {
+        } else if (
+          node.questionType !== 'singleChoice' &&
+          node.questionType !== 'number'
+        ) {
           errors.push(
             `Question node "${node.label}" uses unsupported questionType "${node.questionType}".`,
           );
@@ -118,6 +126,22 @@ export class FlowsService {
         errors.push(
           `Edge "${edge.id}" has target "${edge.target}" which does not exist.`,
         );
+      }
+
+      if (edge.condition) {
+        if (edge.condition.kind !== 'number') {
+          errors.push(`Edge "${edge.id}" has an unsupported condition kind.`);
+        }
+
+        if (
+          !['lt', 'lte', 'gt', 'gte', 'eq'].includes(edge.condition.operator)
+        ) {
+          errors.push(`Edge "${edge.id}" has an invalid number operator.`);
+        }
+
+        if (typeof edge.condition.value !== 'number' || Number.isNaN(edge.condition.value)) {
+          errors.push(`Edge "${edge.id}" must have a valid numeric condition value.`);
+        }
       }
     }
 
@@ -153,6 +177,16 @@ export class FlowsService {
         errors.push(
           `${node.type.charAt(0).toUpperCase() + node.type.slice(1)} node "${node.label}" must have at least one outgoing edge.`,
         );
+      }
+
+      if (node.type === 'question' && node.questionType === 'number') {
+        for (const edge of outgoingEdges) {
+          if (!edge.condition) {
+            errors.push(
+              `All outgoing edges from number question "${node.label}" must have a numeric condition.`,
+            );
+          }
+        }
       }
     }
 

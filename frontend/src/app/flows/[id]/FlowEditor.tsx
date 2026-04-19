@@ -16,7 +16,9 @@ import 'reactflow/dist/style.css';
 import FlowPropertiesPanel from './FlowPropertiesPanel';
 import type {
   DomainNodeType,
+  EdgeCondition,
   FlowEditorProps,
+  NumberOperator,
   QuestionType,
 } from './flow-editor.types';
 import {
@@ -24,6 +26,10 @@ import {
   getNodeStyle,
   mapDomainTypeToReactFlowType,
 } from './flow-editor.utils';
+
+type FlowEditorEdge = Edge & {
+  condition?: EdgeCondition;
+};
 
 export default function FlowEditor({
   flowId,
@@ -64,7 +70,7 @@ export default function FlowEditor({
     [],
   );
 
-  const fallbackEdges: Edge[] = useMemo(() => [], []);
+  const fallbackEdges: FlowEditorEdge[] = useMemo(() => [], []);
 
   const initialNodes: Node[] = useMemo(() => {
     if (!initialGraph?.nodes || initialGraph.nodes.length === 0) {
@@ -91,7 +97,7 @@ export default function FlowEditor({
     }));
   }, [initialGraph, fallbackNodes]);
 
-  const initialEdges: Edge[] = useMemo(() => {
+  const initialEdges: FlowEditorEdge[] = useMemo(() => {
     if (!initialGraph?.edges || initialGraph.edges.length === 0) {
       return fallbackEdges;
     }
@@ -101,6 +107,7 @@ export default function FlowEditor({
       source: edge.source,
       target: edge.target,
       label: edge.label,
+      condition: edge.condition,
     }));
   }, [initialGraph, fallbackEdges]);
 
@@ -118,6 +125,11 @@ export default function FlowEditor({
     useState<DomainNodeType>('question');
   const [questionType, setQuestionType] =
     useState<QuestionType>('singleChoice');
+  const [selectedEdgeSourceQuestionType, setSelectedEdgeSourceQuestionType] =
+    useState<QuestionType | null>(null);
+  const [edgeConditionOperator, setEdgeConditionOperator] =
+    useState<NumberOperator>('eq');
+  const [edgeConditionValue, setEdgeConditionValue] = useState('');
   const [message, setMessage] = useState('');
   const [editorMessage, setEditorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -189,9 +201,17 @@ export default function FlowEditor({
     setQuestionType(
       (node.data?.questionType as QuestionType | undefined) ?? 'singleChoice',
     );
+    setSelectedEdgeSourceQuestionType(null);
+    setEdgeConditionOperator('eq');
+    setEdgeConditionValue('');
   }
 
   function handleEdgeClick(_: React.MouseEvent, edge: Edge) {
+    const typedEdge = edge as FlowEditorEdge;
+    const sourceNode = nodes.find((node) => node.id === edge.source);
+    const sourceQuestionType =
+      (sourceNode?.data?.questionType as QuestionType | undefined) ?? null;
+
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setNodeLabel('');
@@ -202,6 +222,15 @@ export default function FlowEditor({
     setSelectedNodeType('question');
     setQuestionType('singleChoice');
     setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
+    setSelectedEdgeSourceQuestionType(sourceQuestionType);
+
+    if (typedEdge.condition?.kind === 'number') {
+      setEdgeConditionOperator(typedEdge.condition.operator);
+      setEdgeConditionValue(String(typedEdge.condition.value));
+    } else {
+      setEdgeConditionOperator('eq');
+      setEdgeConditionValue('');
+    }
   }
 
   function handleUpdateNodeContent() {
@@ -250,7 +279,10 @@ export default function FlowEditor({
     setSelectedNodeType(newType);
 
     if (newType === 'question') {
-      setQuestionType('singleChoice');
+      setQuestionType(
+        (currentSelectedNode?.data?.questionType as QuestionType | undefined) ??
+          'singleChoice',
+      );
     }
 
     setNodes((nds) =>
@@ -283,18 +315,34 @@ export default function FlowEditor({
     if (!selectedEdgeId) return;
 
     setEdges((eds) =>
-      eds.map((edge) =>
-        edge.id === selectedEdgeId
-          ? {
-              ...edge,
-              label: edgeLabel,
-            }
-          : edge,
-      ),
+      eds.map((edge) => {
+        if (edge.id !== selectedEdgeId) {
+          return edge;
+        }
+
+        const shouldUseNumberCondition =
+          selectedEdgeSourceQuestionType === 'number';
+
+        let condition: EdgeCondition | undefined = undefined;
+
+        if (shouldUseNumberCondition && edgeConditionValue.trim() !== '') {
+          condition = {
+            kind: 'number',
+            operator: edgeConditionOperator,
+            value: Number(edgeConditionValue),
+          };
+        }
+
+        return {
+          ...edge,
+          label: edgeLabel,
+          condition,
+        } as FlowEditorEdge;
+      }),
     );
 
     setLocalEditorFeedback(
-      'Edge label updated in editor. Remember to save the flow.',
+      'Edge updated in editor. Remember to save the flow.',
     );
   }
 
@@ -328,6 +376,9 @@ export default function FlowEditor({
     setEdges((eds) => eds.filter((edge) => edge.id !== selectedEdgeId));
     setSelectedEdgeId(null);
     setEdgeLabel('');
+    setSelectedEdgeSourceQuestionType(null);
+    setEdgeConditionOperator('eq');
+    setEdgeConditionValue('');
 
     setLocalEditorFeedback('Edge deleted in editor. Remember to save the flow.');
   }
@@ -373,12 +424,17 @@ export default function FlowEditor({
               ? node.data.infoText
               : undefined,
         })),
-        edges: edges.map((edge) => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          label: edge.label ? String(edge.label) : undefined,
-        })),
+        edges: edges.map((edge) => {
+          const typedEdge = edge as FlowEditorEdge;
+
+          return {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            label: edge.label ? String(edge.label) : undefined,
+            condition: typedEdge.condition,
+          };
+        }),
       };
 
       const response = await fetch(`http://localhost:3001/flows/${flowId}`, {
@@ -523,6 +579,11 @@ export default function FlowEditor({
           selectedNodeType={selectedNodeType}
           questionType={questionType}
           setQuestionType={setQuestionType}
+          selectedEdgeSourceQuestionType={selectedEdgeSourceQuestionType}
+          edgeConditionOperator={edgeConditionOperator}
+          setEdgeConditionOperator={setEdgeConditionOperator}
+          edgeConditionValue={edgeConditionValue}
+          setEdgeConditionValue={setEdgeConditionValue}
           handleUpdateNodeType={handleUpdateNodeType}
           handleUpdateNodeContent={handleUpdateNodeContent}
           handleDeleteNode={handleDeleteNode}

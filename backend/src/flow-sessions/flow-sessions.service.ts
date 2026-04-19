@@ -13,6 +13,7 @@ type FlowNode = {
     x: number;
     y: number;
   };
+  questionType?: 'singleChoice' | 'number' | 'text';
   introText?: string;
   questionText?: string;
   resultText?: string;
@@ -24,6 +25,11 @@ type FlowEdge = {
   source: string;
   target: string;
   label?: string;
+  condition?: {
+    kind: 'number';
+    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+    value: number;
+  };
 };
 
 type FlowGraph = {
@@ -43,6 +49,7 @@ type FlowSessionAnswerEntry = {
   nodeId: string;
   selectedEdgeId: string;
   selectedLabel?: string;
+  numericValue?: number;
   answeredAt: string;
 };
 
@@ -113,7 +120,32 @@ export class FlowSessionsService {
     };
   }
 
-  async advance(flowId: string, sessionId: string, selectedEdgeId?: string) {
+  private evaluateNumberCondition(
+    numericValue: number,
+    condition: NonNullable<FlowEdge['condition']>,
+  ): boolean {
+    switch (condition.operator) {
+      case 'lt':
+        return numericValue < condition.value;
+      case 'lte':
+        return numericValue <= condition.value;
+      case 'gt':
+        return numericValue > condition.value;
+      case 'gte':
+        return numericValue >= condition.value;
+      case 'eq':
+        return numericValue === condition.value;
+      default:
+        return false;
+    }
+  }
+
+  async advance(
+    flowId: string,
+    sessionId: string,
+    selectedEdgeId?: string,
+    numericValue?: number,
+  ) {
     const session = await this.prisma.flowSession.findUnique({
       where: { id: sessionId },
     });
@@ -168,7 +200,35 @@ export class FlowSessionsService {
 
     let chosenEdge: FlowEdge | undefined;
 
-    if (outgoingEdges.length === 1) {
+    if (currentNode.type === 'question' && currentNode.questionType === 'number') {
+      if (typeof numericValue !== 'number' || Number.isNaN(numericValue)) {
+        throw new BadRequestException(
+          'numericValue is required for number questions.',
+        );
+      }
+
+      const matchingEdges = outgoingEdges.filter((edge) => {
+        if (!edge.condition || edge.condition.kind !== 'number') {
+          return false;
+        }
+
+        return this.evaluateNumberCondition(numericValue, edge.condition);
+      });
+
+      if (matchingEdges.length === 0) {
+        throw new BadRequestException(
+          'No matching numeric condition found for the provided value.',
+        );
+      }
+
+      if (matchingEdges.length > 1) {
+        throw new BadRequestException(
+          'Multiple numeric conditions matched the provided value. Please fix the flow conditions.',
+        );
+      }
+
+      chosenEdge = matchingEdges[0];
+    } else if (outgoingEdges.length === 1) {
       chosenEdge = outgoingEdges[0];
     } else {
       if (!selectedEdgeId) {
@@ -216,6 +276,8 @@ export class FlowSessionsService {
               nodeId: currentNode.id,
               selectedEdgeId: chosenEdge.id,
               selectedLabel: chosenEdge.label,
+              numericValue:
+                currentNode.questionType === 'number' ? numericValue : undefined,
               answeredAt: new Date().toISOString(),
             },
           ]

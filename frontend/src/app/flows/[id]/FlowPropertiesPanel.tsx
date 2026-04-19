@@ -1,6 +1,10 @@
 'use client';
 
-import type { DomainNodeType, QuestionType } from './flow-editor.types';
+import type {
+  DomainNodeType,
+  NumberOperator,
+  QuestionType,
+} from './flow-editor.types';
 
 type FlowPropertiesPanelProps = {
   selectedNodeId: string | null;
@@ -20,6 +24,11 @@ type FlowPropertiesPanelProps = {
   selectedNodeType: DomainNodeType;
   questionType: QuestionType;
   setQuestionType: React.Dispatch<React.SetStateAction<QuestionType>>;
+  selectedEdgeSourceQuestionType: QuestionType | null;
+  edgeConditionOperator: NumberOperator;
+  setEdgeConditionOperator: React.Dispatch<React.SetStateAction<NumberOperator>>;
+  edgeConditionValue: string;
+  setEdgeConditionValue: React.Dispatch<React.SetStateAction<string>>;
   handleUpdateNodeType: (newType: DomainNodeType) => void;
   handleUpdateNodeContent: () => void;
   handleDeleteNode: () => void;
@@ -45,6 +54,11 @@ export default function FlowPropertiesPanel({
   selectedNodeType,
   questionType,
   setQuestionType,
+  selectedEdgeSourceQuestionType,
+  edgeConditionOperator,
+  setEdgeConditionOperator,
+  edgeConditionValue,
+  setEdgeConditionValue,
   handleUpdateNodeType,
   handleUpdateNodeContent,
   handleDeleteNode,
@@ -126,9 +140,7 @@ export default function FlowPropertiesPanel({
                   }
                 >
                   <option value="singleChoice">Single choice</option>
-                  <option value="number" disabled>
-                    Number (coming soon)
-                  </option>
+                  <option value="number">Number</option>
                   <option value="text" disabled>
                     Text (coming soon)
                   </option>
@@ -214,12 +226,48 @@ export default function FlowPropertiesPanel({
             />
           </div>
 
+          {selectedEdgeSourceQuestionType === 'number' && (
+            <div className="space-y-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Number condition operator
+                </label>
+                <select
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={edgeConditionOperator}
+                  onChange={(e) =>
+                    setEdgeConditionOperator(e.target.value as NumberOperator)
+                  }
+                >
+                  <option value="lt">Less than (&lt;)</option>
+                  <option value="lte">Less than or equal (&lt;=)</option>
+                  <option value="gt">Greater than (&gt;)</option>
+                  <option value="gte">Greater than or equal (&gt;=)</option>
+                  <option value="eq">Equal (=)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Number condition value
+                </label>
+                <input
+                  type="number"
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={edgeConditionValue}
+                  onChange={(e) => setEdgeConditionValue(e.target.value)}
+                  placeholder="e.g. 25000"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <button
               onClick={handleUpdateEdgeLabel}
               className="rounded bg-blue-600 px-4 py-2 text-white"
             >
-              Update Edge Label
+              Update Edge
             </button>
 
             <button
