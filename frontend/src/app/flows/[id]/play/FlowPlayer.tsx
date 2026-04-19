@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
@@ -50,7 +50,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     'active' | 'completed' | 'abandoned' | null
   >(null);
   const [canGoBack, setCanGoBack] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isGoingBack, setIsGoingBack] = useState(false);
   const [error, setError] = useState('');
@@ -63,49 +64,46 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     return graph.edges.filter((edge) => edge.source === currentNode.id);
   }, [graph, currentNode]);
 
-  useEffect(() => {
-    async function startSession() {
-      setIsLoading(true);
-      setError('');
+  async function startSession() {
+    setIsLoading(true);
+    setError('');
 
-      try {
-        const response = await fetch(
-          `http://localhost:3001/flows/${flowId}/sessions`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+    try {
+      const response = await fetch(
+        `http://localhost:3001/flows/${flowId}/sessions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        );
+        },
+      );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
 
-          if (errorData?.message) {
-            setError(String(errorData.message));
-          } else {
-            setError('Failed to start flow session.');
-          }
-
-          return;
+        if (errorData?.message) {
+          setError(String(errorData.message));
+        } else {
+          setError('Failed to start flow session.');
         }
 
-        const data: SessionResponse = await response.json();
-        setSessionId(data.sessionId);
-        setCurrentNode(data.currentNode);
-        setSessionStatus(data.status);
-        setCanGoBack(data.canGoBack);
-      } catch (err) {
-        console.error('Failed to start flow session:', err);
-        setError('An unexpected error occurred while starting play mode.');
-      } finally {
-        setIsLoading(false);
+        return;
       }
-    }
 
-    startSession();
-  }, [flowId]);
+      const data: SessionResponse = await response.json();
+      setSessionId(data.sessionId);
+      setCurrentNode(data.currentNode);
+      setSessionStatus(data.status);
+      setCanGoBack(data.canGoBack);
+      setHasStarted(true);
+    } catch (err) {
+      console.error('Failed to start flow session:', err);
+      setError('An unexpected error occurred while starting play mode.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   async function advance(selectedEdgeId?: string) {
     if (!sessionId) return;
@@ -202,10 +200,37 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     );
   }
 
-  if (isLoading) {
+  if (!hasStarted) {
     return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 text-neutral-300">
-        Starting flow...
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-sm">
+        <div className="space-y-6">
+          <div>
+            <p className="text-sm uppercase tracking-wide text-neutral-400">
+              Play mode
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-white">
+              Ready to start
+            </h2>
+          </div>
+
+          <p className="text-neutral-300">
+            Start a new session to run this flow step by step.
+          </p>
+
+          {error && (
+            <div className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-300">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={startSession}
+            disabled={isLoading}
+            className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
+          >
+            {isLoading ? 'Starting...' : 'Start Flow'}
+          </button>
+        </div>
       </div>
     );
   }

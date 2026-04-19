@@ -128,6 +128,59 @@ export class FlowsService {
       }
     }
 
+    for (const node of graph.nodes) {
+      const outgoingEdges = graph.edges.filter((edge) => edge.source === node.id);
+
+      if (
+        (node.type === 'start' ||
+          node.type === 'question' ||
+          node.type === 'info') &&
+        outgoingEdges.length === 0
+      ) {
+        errors.push(
+          `${node.type.charAt(0).toUpperCase() + node.type.slice(1)} node "${node.label}" must have at least one outgoing edge.`,
+        );
+      }
+    }
+
+    if (startNodes.length === 1) {
+      const startNode = startNodes[0];
+      const visited = new Set<string>();
+      const queue: string[] = [startNode.id];
+
+      while (queue.length > 0) {
+        const currentNodeId = queue.shift();
+
+        if (!currentNodeId || visited.has(currentNodeId)) {
+          continue;
+        }
+
+        visited.add(currentNodeId);
+
+        const nextEdges = graph.edges.filter(
+          (edge) => edge.source === currentNodeId,
+        );
+
+        for (const edge of nextEdges) {
+          if (!visited.has(edge.target)) {
+            queue.push(edge.target);
+          }
+        }
+      }
+
+      for (const node of graph.nodes) {
+        if (!visited.has(node.id)) {
+          errors.push(`Node "${node.label}" is not reachable from the start node.`);
+        }
+      }
+
+      const reachableEndNodes = endNodes.filter((node) => visited.has(node.id));
+
+      if (reachableEndNodes.length === 0) {
+        errors.push('At least one end node must be reachable from the start node.');
+      }
+    }
+
     return errors;
   }
 
