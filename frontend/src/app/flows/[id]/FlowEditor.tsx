@@ -24,6 +24,7 @@ type FlowGraph = {
       x: number;
       y: number;
     };
+    introText?: string;
     questionText?: string;
     resultText?: string;
   }[];
@@ -116,6 +117,7 @@ function createNode(
             ? 'End'
             : `Question ${index + 1}`),
       nodeType,
+      introText: '',
       questionText: '',
       resultText: '',
     },
@@ -136,6 +138,7 @@ export default function FlowEditor({
         data: {
           label: 'Start',
           nodeType: 'start',
+          introText: '',
           questionText: '',
           resultText: '',
         },
@@ -148,6 +151,7 @@ export default function FlowEditor({
         data: {
           label: 'Question',
           nodeType: 'question',
+          introText: '',
           questionText: '',
           resultText: '',
         },
@@ -171,6 +175,7 @@ export default function FlowEditor({
       data: {
         label: node.label,
         nodeType: node.type,
+        introText: node.introText ?? '',
         questionText: node.questionText ?? '',
         resultText: node.resultText ?? '',
       },
@@ -196,6 +201,7 @@ export default function FlowEditor({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [nodeLabel, setNodeLabel] = useState('');
+  const [introText, setIntroText] = useState('');
   const [questionText, setQuestionText] = useState('');
   const [resultText, setResultText] = useState('');
   const [edgeLabel, setEdgeLabel] = useState('');
@@ -264,6 +270,7 @@ export default function FlowEditor({
     setSelectedEdgeId(null);
     setEdgeLabel('');
     setNodeLabel(String(node.data?.label ?? ''));
+    setIntroText(String(node.data?.introText ?? ''));
     setQuestionText(String(node.data?.questionText ?? ''));
     setResultText(String(node.data?.resultText ?? ''));
     setSelectedNodeType(
@@ -275,6 +282,7 @@ export default function FlowEditor({
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setNodeLabel('');
+    setIntroText('');
     setQuestionText('');
     setResultText('');
     setSelectedNodeType('question');
@@ -292,6 +300,7 @@ export default function FlowEditor({
               data: {
                 ...node.data,
                 label: nodeLabel,
+                introText,
                 questionText,
                 resultText,
               },
@@ -374,6 +383,7 @@ export default function FlowEditor({
 
     setSelectedNodeId(null);
     setNodeLabel('');
+    setIntroText('');
     setQuestionText('');
     setResultText('');
     setSelectedNodeType('question');
@@ -406,6 +416,11 @@ export default function FlowEditor({
             x: node.position.x,
             y: node.position.y,
           },
+          introText:
+            typeof node.data?.introText === 'string' &&
+            node.data.introText.trim() !== ''
+              ? node.data.introText
+              : undefined,
           questionText:
             typeof node.data?.questionText === 'string' &&
             node.data.questionText.trim() !== ''
@@ -586,6 +601,20 @@ export default function FlowEditor({
                   <option value="end">End</option>
                 </select>
               </div>
+
+              {selectedNodeType === 'start' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-300">
+                    Intro text
+                  </label>
+                  <textarea
+                    className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                    value={introText}
+                    onChange={(e) => setIntroText(e.target.value)}
+                    placeholder="Welcome text or introduction shown before the flow begins"
+                  />
+                </div>
+              )}
 
               {selectedNodeType === 'question' && (
                 <div>

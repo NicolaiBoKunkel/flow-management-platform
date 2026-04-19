@@ -11,6 +11,7 @@ type FlowGraph = {
       x: number;
       y: number;
     };
+    introText?: string;
     questionText?: string;
     resultText?: string;
   }[];
@@ -63,23 +64,23 @@ export default async function FlowDetailPage({
 
   return (
     <main className="p-8">
-      <h1 className="text-2xl font-bold mb-4">{flow.title}</h1>
+      <h1 className="mb-4 text-2xl font-bold">{flow.title}</h1>
 
-      <p className="text-sm text-gray-600 mb-2">Status: {flow.status}</p>
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="mb-2 text-sm text-gray-600">Status: {flow.status}</p>
+      <p className="mb-4 text-sm text-gray-600">
         Visibility: {flow.visibility}
       </p>
 
       {flow.description && <p className="mb-4">{flow.description}</p>}
 
-      <p className="text-sm text-gray-500 mb-8">
+      <p className="mb-8 text-sm text-gray-500">
         Created: {new Date(flow.createdAt).toLocaleString()}
       </p>
 
       <EditFlowForm flow={flow} />
 
       <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Flow Editor</h2>
+        <h2 className="mb-4 text-xl font-semibold">Flow Editor</h2>
         <FlowEditor flowId={flow.id} initialGraph={flow.graph ?? null} />
       </div>
     </main>
