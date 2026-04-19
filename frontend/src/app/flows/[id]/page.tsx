@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import EditFlowForm from './EditFlowForm';
 import FlowEditor from './FlowEditor';
@@ -65,18 +66,29 @@ export default async function FlowDetailPage({
 
   return (
     <main className="p-8">
-      <h1 className="mb-4 text-2xl font-bold">{flow.title}</h1>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="mb-4 text-2xl font-bold">{flow.title}</h1>
 
-      <p className="mb-2 text-sm text-gray-600">Status: {flow.status}</p>
-      <p className="mb-4 text-sm text-gray-600">
-        Visibility: {flow.visibility}
-      </p>
+          <p className="mb-2 text-sm text-gray-600">Status: {flow.status}</p>
+          <p className="mb-4 text-sm text-gray-600">
+            Visibility: {flow.visibility}
+          </p>
 
-      {flow.description && <p className="mb-4">{flow.description}</p>}
+          {flow.description && <p className="mb-4">{flow.description}</p>}
 
-      <p className="mb-8 text-sm text-gray-500">
-        Created: {new Date(flow.createdAt).toLocaleString()}
-      </p>
+          <p className="text-sm text-gray-500">
+            Created: {new Date(flow.createdAt).toLocaleString()}
+          </p>
+        </div>
+
+        <Link
+          href={`/flows/${flow.id}/play`}
+          className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
+        >
+          Play Flow
+        </Link>
+      </div>
 
       <EditFlowForm flow={flow} />
 
