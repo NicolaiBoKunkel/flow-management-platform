@@ -15,6 +15,7 @@ type FlowNode = {
     x: number;
     y: number;
   };
+  questionType?: 'singleChoice' | 'number' | 'text';
   introText?: string;
   questionText?: string;
   resultText?: string;
@@ -93,6 +94,18 @@ export class FlowsService {
     }
 
     const nodeIds = new Set(graph.nodes.map((node) => node.id));
+
+    for (const node of graph.nodes) {
+      if (node.type === 'question') {
+        if (!node.questionType) {
+          errors.push(`Question node "${node.label}" must have a questionType.`);
+        } else if (node.questionType !== 'singleChoice') {
+          errors.push(
+            `Question node "${node.label}" uses unsupported questionType "${node.questionType}".`,
+          );
+        }
+      }
+    }
 
     for (const edge of graph.edges) {
       if (!nodeIds.has(edge.source)) {

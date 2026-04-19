@@ -1,6 +1,6 @@
 'use client';
 
-import type { DomainNodeType } from './flow-editor.types';
+import type { DomainNodeType, QuestionType } from './flow-editor.types';
 
 type FlowPropertiesPanelProps = {
   selectedNodeId: string | null;
@@ -18,6 +18,8 @@ type FlowPropertiesPanelProps = {
   edgeLabel: string;
   setEdgeLabel: React.Dispatch<React.SetStateAction<string>>;
   selectedNodeType: DomainNodeType;
+  questionType: QuestionType;
+  setQuestionType: React.Dispatch<React.SetStateAction<QuestionType>>;
   handleUpdateNodeType: (newType: DomainNodeType) => void;
   handleUpdateNodeContent: () => void;
   handleDeleteNode: () => void;
@@ -41,6 +43,8 @@ export default function FlowPropertiesPanel({
   edgeLabel,
   setEdgeLabel,
   selectedNodeType,
+  questionType,
+  setQuestionType,
   handleUpdateNodeType,
   handleUpdateNodeContent,
   handleDeleteNode,
@@ -109,16 +113,39 @@ export default function FlowPropertiesPanel({
           )}
 
           {selectedNodeType === 'question' && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-300">
-                Question text
-              </label>
-              <textarea
-                className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder="What should the user be asked?"
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Question type
+                </label>
+                <select
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={questionType}
+                  onChange={(e) =>
+                    setQuestionType(e.target.value as QuestionType)
+                  }
+                >
+                  <option value="singleChoice">Single choice</option>
+                  <option value="number" disabled>
+                    Number (coming soon)
+                  </option>
+                  <option value="text" disabled>
+                    Text (coming soon)
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-300">
+                  Question text
+                </label>
+                <textarea
+                  className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder="What should the user be asked?"
+                />
+              </div>
             </div>
           )}
 

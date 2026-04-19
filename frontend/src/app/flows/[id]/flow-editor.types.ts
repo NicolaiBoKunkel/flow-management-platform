@@ -1,5 +1,7 @@
 export type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
+export type QuestionType = 'singleChoice' | 'number' | 'text';
+
 export type FlowGraph = {
   nodes: {
     id: string;
@@ -9,6 +11,7 @@ export type FlowGraph = {
       x: number;
       y: number;
     };
+    questionType?: QuestionType;
     introText?: string;
     questionText?: string;
     resultText?: string;

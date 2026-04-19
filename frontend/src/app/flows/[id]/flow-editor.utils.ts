@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { Node } from 'reactflow';
 import type { DomainNodeType } from './flow-editor.types';
 
@@ -88,6 +89,7 @@ export function createNode(
               ? `Info ${index + 1}`
               : `Question ${index + 1}`),
       nodeType,
+      questionType: nodeType === 'question' ? 'singleChoice' : undefined,
       introText: '',
       questionText: '',
       resultText: '',

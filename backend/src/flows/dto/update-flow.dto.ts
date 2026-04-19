@@ -39,6 +39,7 @@ export class UpdateFlowDto {
         x: number;
         y: number;
       };
+      questionType?: 'singleChoice' | 'number' | 'text';
       introText?: string;
       questionText?: string;
       resultText?: string;

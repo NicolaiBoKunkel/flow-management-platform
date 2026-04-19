@@ -17,6 +17,7 @@ import FlowPropertiesPanel from './FlowPropertiesPanel';
 import type {
   DomainNodeType,
   FlowEditorProps,
+  QuestionType,
 } from './flow-editor.types';
 import {
   createNode,
@@ -51,6 +52,7 @@ export default function FlowEditor({
         data: {
           label: 'Question',
           nodeType: 'question',
+          questionType: 'singleChoice',
           introText: '',
           questionText: '',
           resultText: '',
@@ -76,6 +78,10 @@ export default function FlowEditor({
       data: {
         label: node.label,
         nodeType: node.type,
+        questionType:
+          node.type === 'question'
+            ? (node.questionType ?? 'singleChoice')
+            : undefined,
         introText: node.introText ?? '',
         questionText: node.questionText ?? '',
         resultText: node.resultText ?? '',
@@ -110,6 +116,8 @@ export default function FlowEditor({
   const [edgeLabel, setEdgeLabel] = useState('');
   const [selectedNodeType, setSelectedNodeType] =
     useState<DomainNodeType>('question');
+  const [questionType, setQuestionType] =
+    useState<QuestionType>('singleChoice');
   const [message, setMessage] = useState('');
   const [editorMessage, setEditorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -178,6 +186,9 @@ export default function FlowEditor({
     setResultText(String(node.data?.resultText ?? ''));
     setInfoText(String(node.data?.infoText ?? ''));
     setSelectedNodeType((node.data?.nodeType as DomainNodeType) ?? 'question');
+    setQuestionType(
+      (node.data?.questionType as QuestionType | undefined) ?? 'singleChoice',
+    );
   }
 
   function handleEdgeClick(_: React.MouseEvent, edge: Edge) {
@@ -189,6 +200,7 @@ export default function FlowEditor({
     setResultText('');
     setInfoText('');
     setSelectedNodeType('question');
+    setQuestionType('singleChoice');
     setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
   }
 
@@ -203,6 +215,10 @@ export default function FlowEditor({
               data: {
                 ...node.data,
                 label: nodeLabel,
+                questionType:
+                  (node.data?.nodeType as DomainNodeType) === 'question'
+                    ? questionType
+                    : undefined,
                 introText,
                 questionText,
                 resultText,
@@ -233,6 +249,10 @@ export default function FlowEditor({
     setValidationErrors([]);
     setSelectedNodeType(newType);
 
+    if (newType === 'question') {
+      setQuestionType('singleChoice');
+    }
+
     setNodes((nds) =>
       nds.map((node) =>
         node.id === selectedNodeId
@@ -242,6 +262,11 @@ export default function FlowEditor({
               data: {
                 ...node.data,
                 nodeType: newType,
+                questionType:
+                  newType === 'question'
+                    ? ((node.data?.questionType as QuestionType | undefined) ??
+                      'singleChoice')
+                    : undefined,
               },
               style: getNodeStyle(newType, true),
             }
@@ -292,6 +317,7 @@ export default function FlowEditor({
     setResultText('');
     setInfoText('');
     setSelectedNodeType('question');
+    setQuestionType('singleChoice');
 
     setLocalEditorFeedback('Node deleted in editor. Remember to save the flow.');
   }
@@ -321,6 +347,11 @@ export default function FlowEditor({
             x: node.position.x,
             y: node.position.y,
           },
+          questionType:
+            (node.data?.nodeType as DomainNodeType) === 'question'
+              ? ((node.data?.questionType as QuestionType | undefined) ??
+                'singleChoice')
+              : undefined,
           introText:
             typeof node.data?.introText === 'string' &&
             node.data.introText.trim() !== ''
@@ -490,6 +521,8 @@ export default function FlowEditor({
           edgeLabel={edgeLabel}
           setEdgeLabel={setEdgeLabel}
           selectedNodeType={selectedNodeType}
+          questionType={questionType}
+          setQuestionType={setQuestionType}
           handleUpdateNodeType={handleUpdateNodeType}
           handleUpdateNodeContent={handleUpdateNodeContent}
           handleDeleteNode={handleDeleteNode}
