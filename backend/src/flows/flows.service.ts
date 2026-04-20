@@ -106,7 +106,9 @@ export class FlowsService {
     }
 
     if (!flow.ownerId || flow.ownerId !== userId) {
-      throw new ForbiddenException('You do not have access to modify this flow');
+      throw new ForbiddenException(
+        'You do not have access to modify this flow',
+      );
     }
 
     return flow;

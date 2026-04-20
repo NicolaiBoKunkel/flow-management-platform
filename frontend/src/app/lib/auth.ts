@@ -1,4 +1,5 @@
 export const TOKEN_KEY = 'flow_auth_token';
+export const AUTH_CHANGED_EVENT = 'auth-changed';
 
 export type AuthUser = {
   id: string;
@@ -6,6 +7,14 @@ export type AuthUser = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+function notifyAuthChanged() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') {
@@ -21,6 +30,7 @@ export function setToken(token: string) {
   }
 
   localStorage.setItem(TOKEN_KEY, token);
+  notifyAuthChanged();
 }
 
 export function removeToken() {
@@ -29,4 +39,5 @@ export function removeToken() {
   }
 
   localStorage.removeItem(TOKEN_KEY);
+  notifyAuthChanged();
 }

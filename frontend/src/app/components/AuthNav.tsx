@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
-import { removeToken } from '../lib/auth';
+import { AUTH_CHANGED_EVENT, removeToken } from '../lib/auth';
 
 type MeResponse = {
   id: string;
@@ -18,6 +18,8 @@ export default function AuthNav() {
 
   useEffect(() => {
     async function loadUser() {
+      setLoading(true);
+
       try {
         const res = await apiFetch('/auth/me');
 
@@ -35,7 +37,19 @@ export default function AuthNav() {
       }
     }
 
+    function handleAuthChanged() {
+      void loadUser();
+    }
+
     void loadUser();
+
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
+    window.addEventListener('storage', handleAuthChanged);
+
+    return () => {
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
+      window.removeEventListener('storage', handleAuthChanged);
+    };
   }, []);
 
   function handleLogout() {
@@ -44,27 +58,29 @@ export default function AuthNav() {
   }
 
   return (
-    <header className="border-b border-neutral-200 bg-white">
+    <header className="border-b border-neutral-800 bg-neutral-950 text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-semibold text-black">
+        <Link href="/" className="text-lg font-semibold text-white">
           Flow Management Platform
         </Link>
 
         <nav className="flex items-center gap-3">
           {loading ? (
-            <span className="text-sm text-neutral-500">Loading...</span>
+            <span className="text-sm text-neutral-400">Loading...</span>
           ) : user ? (
             <>
-              <span className="text-sm text-neutral-600">{user.email}</span>
+              <span className="text-sm text-neutral-300">{user.email}</span>
+
               <Link
                 href="/login"
-                className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-100"
+                className="rounded border border-neutral-700 px-3 py-2 text-sm text-white transition hover:bg-neutral-800"
               >
                 Switch user
               </Link>
+
               <button
                 onClick={handleLogout}
-                className="rounded bg-black px-3 py-2 text-sm text-white hover:bg-neutral-800"
+                className="rounded bg-red-600 px-3 py-2 text-sm text-white transition hover:bg-red-500"
               >
                 Logout
               </button>
@@ -73,13 +89,14 @@ export default function AuthNav() {
             <>
               <Link
                 href="/login"
-                className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-100"
+                className="rounded border border-neutral-700 px-3 py-2 text-sm text-white transition hover:bg-neutral-800"
               >
                 Login
               </Link>
+
               <Link
                 href="/register"
-                className="rounded bg-black px-3 py-2 text-sm text-white hover:bg-neutral-800"
+                className="rounded bg-blue-600 px-3 py-2 text-sm text-white transition hover:bg-blue-500"
               >
                 Register
               </Link>

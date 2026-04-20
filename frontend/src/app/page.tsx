@@ -37,30 +37,27 @@ export default function Home() {
     setFlows(data);
   }
 
-  async function fetchMe() {
-    if (!getToken()) {
-      setCurrentUser(null);
-      return;
-    }
-
-    try {
-      const res = await apiFetch('/auth/me');
-
-      if (!res.ok) {
-        setCurrentUser(null);
-        return;
-      }
-
-      const data = (await res.json()) as MeResponse;
-      setCurrentUser(data);
-    } catch {
-      setCurrentUser(null);
-    }
-  }
-
   useEffect(() => {
-    void fetchFlows();
-    void fetchMe();
+    apiFetch('/flows')
+      .then((res) => res.json())
+      .then((data) => setFlows(data as Flow[]))
+      .catch(() => {});
+
+    const token = getToken();
+    if (token) {
+      apiFetch('/auth/me')
+        .then((res) => {
+          if (!res.ok) {
+            setCurrentUser(null);
+            return null;
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (data) setCurrentUser(data as MeResponse);
+        })
+        .catch(() => setCurrentUser(null));
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

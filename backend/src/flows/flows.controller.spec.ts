@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FlowsController } from './flows.controller';
 import { FlowsService } from './flows.service';
+import { JwtService } from '@nestjs/jwt';
 
 describe('FlowsController', () => {
   let controller: FlowsController;
@@ -15,6 +16,12 @@ describe('FlowsController', () => {
             findAll: jest.fn(),
             findOne: jest.fn(),
             create: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            verifyAsync: jest.fn(),
           },
         },
       ],
