@@ -24,6 +24,16 @@ enum FlowSessionStatus {
   abandoned
 }
 
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  flows     Flow[]
+}
+
 model Flow {
   id          String         @id @default(uuid())
   title       String
@@ -33,6 +43,9 @@ model Flow {
   graph       Json?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  ownerId     String?
+  owner       User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
   sessions    FlowSession[]
 }

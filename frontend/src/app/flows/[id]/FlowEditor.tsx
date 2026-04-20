@@ -14,6 +14,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import FlowPropertiesPanel from './FlowPropertiesPanel';
+import { apiFetch } from '../../lib/api';
+import { getToken } from '../../lib/auth';
 import type {
   DomainNodeType,
   EdgeCondition,
@@ -418,6 +420,12 @@ export default function FlowEditor({
     setMessage('');
     setValidationErrors([]);
 
+    if (!getToken()) {
+      setValidationErrors(['Du skal være logget ind for at gemme flowet.']);
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const graph = {
         nodes: nodes.map((node) => ({
@@ -471,16 +479,16 @@ export default function FlowEditor({
         }),
       };
 
-      const response = await fetch(`http://localhost:3001/flows/${flowId}`, {
+      const response = await apiFetch(`/flows/${flowId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ graph }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as {
+          errors?: string[];
+          message?: string;
+        };
 
         if (Array.isArray(errorData.errors)) {
           setValidationErrors(errorData.errors);

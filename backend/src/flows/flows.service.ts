@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -60,6 +61,17 @@ export class FlowsService {
     });
   }
 
+  findMine(userId: string) {
+    return this.prisma.flow.findMany({
+      where: {
+        ownerId: userId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async findOne(id: string) {
     const flow = await this.prisma.flow.findUnique({
       where: { id },
@@ -72,15 +84,32 @@ export class FlowsService {
     return flow;
   }
 
-  create(createFlowDto: CreateFlowDto) {
+  create(createFlowDto: CreateFlowDto, ownerId: string) {
     return this.prisma.flow.create({
       data: {
         title: createFlowDto.title,
         description: createFlowDto.description,
         visibility: createFlowDto.visibility,
         status: createFlowDto.status,
+        ownerId,
       },
     });
+  }
+
+  private async findOwnedFlowOrThrow(id: string, userId: string) {
+    const flow = await this.prisma.flow.findUnique({
+      where: { id },
+    });
+
+    if (!flow) {
+      throw new NotFoundException(`Flow with id ${id} not found`);
+    }
+
+    if (!flow.ownerId || flow.ownerId !== userId) {
+      throw new ForbiddenException('You do not have access to modify this flow');
+    }
+
+    return flow;
   }
 
   private toNumberInterval(edge: FlowEdge): NumberInterval | null {
@@ -362,8 +391,8 @@ export class FlowsService {
     return errors;
   }
 
-  async update(id: string, updateFlowDto: UpdateFlowDto) {
-    await this.findOne(id);
+  async update(id: string, updateFlowDto: UpdateFlowDto, userId: string) {
+    await this.findOwnedFlowOrThrow(id, userId);
 
     if (updateFlowDto.graph) {
       const validationErrors = this.validateGraph(
@@ -384,8 +413,8 @@ export class FlowsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, userId: string) {
+    await this.findOwnedFlowOrThrow(id, userId);
 
     return this.prisma.flow.delete({
       where: { id },

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../../lib/api';
+import { getToken } from '../../lib/auth';
 
 type Flow = {
   id: string;
@@ -8,6 +10,14 @@ type Flow = {
   description: string | null;
   visibility: string;
   status: string;
+  createdAt: string;
+  updatedAt: string;
+  ownerId?: string | null;
+};
+
+type MeResponse = {
+  id: string;
+  email: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -20,18 +30,56 @@ export default function EditFlowForm({ flow }: { flow: Flow }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [currentUser, setCurrentUser] = useState<MeResponse | null>(null);
+
+  useEffect(() => {
+    async function fetchMe() {
+      if (!getToken()) {
+        setCurrentUser(null);
+        return;
+      }
+
+      try {
+        const res = await apiFetch('/auth/me');
+
+        if (!res.ok) {
+          setCurrentUser(null);
+          return;
+        }
+
+        const data = (await res.json()) as MeResponse;
+        setCurrentUser(data);
+      } catch {
+        setCurrentUser(null);
+      }
+    }
+
+    void fetchMe();
+  }, []);
+
+  const isOwner = !!currentUser && flow.ownerId === currentUser.id;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     setSuccessMessage('');
     setErrorMessage('');
+
+    if (!getToken()) {
+      setErrorMessage('You must be logged in to update a flow.');
+      return;
+    }
+
+    if (!isOwner) {
+      setErrorMessage('Only the owner can update this flow.');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      const res = await fetch(`http://localhost:3001/flows/${flow.id}`, {
+      const res = await apiFetch(`/flows/${flow.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
           description,
@@ -41,10 +89,14 @@ export default function EditFlowForm({ flow }: { flow: Flow }) {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
+        const errorData = (await res.json()) as {
+          message?: string | string[];
+        };
 
         if (Array.isArray(errorData.message)) {
           setErrorMessage(errorData.message.join(', '));
+        } else if (typeof errorData.message === 'string') {
+          setErrorMessage(errorData.message);
         } else {
           setErrorMessage('Failed to update flow.');
         }
@@ -58,6 +110,28 @@ export default function EditFlowForm({ flow }: { flow: Flow }) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="mt-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Edit Flow</h2>
+        <p className="mt-2 text-sm text-neutral-600">
+          You must be logged in to edit this flow.
+        </p>
+      </section>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <section className="mt-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Edit Flow</h2>
+        <p className="mt-2 text-sm text-neutral-600">
+          You are logged in, but you are not the owner of this flow.
+        </p>
+      </section>
+    );
   }
 
   return (
