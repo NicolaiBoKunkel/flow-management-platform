@@ -14,13 +14,19 @@ export class FlowSessionsController {
   advance(
     @Param('flowId') flowId: string,
     @Param('sessionId') sessionId: string,
-    @Body() body: { selectedEdgeId?: string; numericValue?: number },
+    @Body()
+    body: {
+      selectedEdgeId?: string;
+      numericValue?: number;
+      textValue?: string;
+    },
   ) {
     return this.flowSessionsService.advance(
       flowId,
       sessionId,
       body?.selectedEdgeId,
       body?.numericValue,
+      body?.textValue,
     );
   }
 

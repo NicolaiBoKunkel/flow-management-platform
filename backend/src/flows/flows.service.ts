@@ -7,6 +7,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 
+type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+
 type FlowNode = {
   id: string;
   type: 'start' | 'question' | 'end' | 'info';
@@ -29,7 +31,7 @@ type FlowEdge = {
   label?: string;
   condition?: {
     kind: 'number';
-    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+    operator: NumberOperator;
     value: number;
   };
 };
@@ -37,6 +39,13 @@ type FlowEdge = {
 type FlowGraph = {
   nodes: FlowNode[];
   edges: FlowEdge[];
+};
+
+type NumberInterval = {
+  min: number;
+  minInclusive: boolean;
+  max: number;
+  maxInclusive: boolean;
 };
 
 @Injectable()
@@ -74,6 +83,74 @@ export class FlowsService {
     });
   }
 
+  private toNumberInterval(edge: FlowEdge): NumberInterval | null {
+    const condition = edge.condition;
+
+    if (!condition || condition.kind !== 'number') {
+      return null;
+    }
+
+    switch (condition.operator) {
+      case 'lt':
+        return {
+          min: Number.NEGATIVE_INFINITY,
+          minInclusive: false,
+          max: condition.value,
+          maxInclusive: false,
+        };
+      case 'lte':
+        return {
+          min: Number.NEGATIVE_INFINITY,
+          minInclusive: false,
+          max: condition.value,
+          maxInclusive: true,
+        };
+      case 'gt':
+        return {
+          min: condition.value,
+          minInclusive: false,
+          max: Number.POSITIVE_INFINITY,
+          maxInclusive: false,
+        };
+      case 'gte':
+        return {
+          min: condition.value,
+          minInclusive: true,
+          max: Number.POSITIVE_INFINITY,
+          maxInclusive: false,
+        };
+      case 'eq':
+        return {
+          min: condition.value,
+          minInclusive: true,
+          max: condition.value,
+          maxInclusive: true,
+        };
+      default:
+        return null;
+    }
+  }
+
+  private intervalsOverlap(a: NumberInterval, b: NumberInterval): boolean {
+    if (a.max < b.min) {
+      return false;
+    }
+
+    if (b.max < a.min) {
+      return false;
+    }
+
+    if (a.max === b.min) {
+      return a.maxInclusive && b.minInclusive;
+    }
+
+    if (b.max === a.min) {
+      return b.maxInclusive && a.minInclusive;
+    }
+
+    return true;
+  }
+
   private validateGraph(graph: FlowGraph): string[] {
     const errors: string[] = [];
 
@@ -106,7 +183,8 @@ export class FlowsService {
           errors.push(`Question node "${node.label}" must have a questionType.`);
         } else if (
           node.questionType !== 'singleChoice' &&
-          node.questionType !== 'number'
+          node.questionType !== 'number' &&
+          node.questionType !== 'text'
         ) {
           errors.push(
             `Question node "${node.label}" uses unsupported questionType "${node.questionType}".`,
@@ -139,7 +217,10 @@ export class FlowsService {
           errors.push(`Edge "${edge.id}" has an invalid number operator.`);
         }
 
-        if (typeof edge.condition.value !== 'number' || Number.isNaN(edge.condition.value)) {
+        if (
+          typeof edge.condition.value !== 'number' ||
+          Number.isNaN(edge.condition.value)
+        ) {
           errors.push(`Edge "${edge.id}" must have a valid numeric condition value.`);
         }
       }
@@ -184,6 +265,42 @@ export class FlowsService {
           if (!edge.condition) {
             errors.push(
               `All outgoing edges from number question "${node.label}" must have a numeric condition.`,
+            );
+          }
+        }
+
+        for (let i = 0; i < outgoingEdges.length; i++) {
+          for (let j = i + 1; j < outgoingEdges.length; j++) {
+            const firstEdge = outgoingEdges[i];
+            const secondEdge = outgoingEdges[j];
+
+            const firstInterval = this.toNumberInterval(firstEdge);
+            const secondInterval = this.toNumberInterval(secondEdge);
+
+            if (!firstInterval || !secondInterval) {
+              continue;
+            }
+
+            if (this.intervalsOverlap(firstInterval, secondInterval)) {
+              errors.push(
+                `Number question "${node.label}" has overlapping conditions on edges "${firstEdge.id}" and "${secondEdge.id}".`,
+              );
+            }
+          }
+        }
+      }
+
+      if (node.type === 'question' && node.questionType === 'text') {
+        if (outgoingEdges.length !== 1) {
+          errors.push(
+            `Text question "${node.label}" must have exactly one outgoing edge.`,
+          );
+        }
+
+        for (const edge of outgoingEdges) {
+          if (edge.condition) {
+            errors.push(
+              `Text question "${node.label}" cannot use edge conditions.`,
             );
           }
         }

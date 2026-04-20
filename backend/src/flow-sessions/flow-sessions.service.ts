@@ -50,6 +50,7 @@ type FlowSessionAnswerEntry = {
   selectedEdgeId: string;
   selectedLabel?: string;
   numericValue?: number;
+  textValue?: string;
   answeredAt: string;
 };
 
@@ -145,6 +146,7 @@ export class FlowSessionsService {
     sessionId: string,
     selectedEdgeId?: string,
     numericValue?: number,
+    textValue?: string,
   ) {
     const session = await this.prisma.flowSession.findUnique({
       where: { id: sessionId },
@@ -228,6 +230,20 @@ export class FlowSessionsService {
       }
 
       chosenEdge = matchingEdges[0];
+    } else if (currentNode.type === 'question' && currentNode.questionType === 'text') {
+      if (typeof textValue !== 'string' || textValue.trim() === '') {
+        throw new BadRequestException(
+          'textValue is required for text questions.',
+        );
+      }
+
+      if (outgoingEdges.length !== 1) {
+        throw new BadRequestException(
+          'Text questions must have exactly one outgoing edge.',
+        );
+      }
+
+      chosenEdge = outgoingEdges[0];
     } else if (outgoingEdges.length === 1) {
       chosenEdge = outgoingEdges[0];
     } else {
@@ -278,6 +294,10 @@ export class FlowSessionsService {
               selectedLabel: chosenEdge.label,
               numericValue:
                 currentNode.questionType === 'number' ? numericValue : undefined,
+              textValue:
+                currentNode.questionType === 'text'
+                  ? textValue?.trim()
+                  : undefined,
               answeredAt: new Date().toISOString(),
             },
           ]

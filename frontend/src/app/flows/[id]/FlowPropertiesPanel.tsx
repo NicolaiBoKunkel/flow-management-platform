@@ -162,9 +162,7 @@ export default function FlowPropertiesPanel({
                 >
                   <option value="singleChoice">Single choice</option>
                   <option value="number">Number</option>
-                  <option value="text" disabled>
-                    Text (coming soon)
-                  </option>
+                  <option value="text">Text</option>
                 </select>
               </div>
 

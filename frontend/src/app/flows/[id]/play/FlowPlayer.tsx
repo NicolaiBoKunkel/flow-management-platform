@@ -63,6 +63,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
   const [isGoingBack, setIsGoingBack] = useState(false);
   const [error, setError] = useState('');
   const [numericValue, setNumericValue] = useState('');
+  const [textValue, setTextValue] = useState('');
 
   const outgoingEdges = useMemo(() => {
     if (!graph || !currentNode) {
@@ -106,6 +107,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCanGoBack(data.canGoBack);
       setHasStarted(true);
       setNumericValue('');
+      setTextValue('');
     } catch (err) {
       console.error('Failed to start flow session:', err);
       setError('An unexpected error occurred while starting play mode.');
@@ -114,7 +116,11 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     }
   }
 
-  async function advance(selectedEdgeId?: string, submittedNumericValue?: number) {
+  async function advance(
+    selectedEdgeId?: string,
+    submittedNumericValue?: number,
+    submittedTextValue?: string,
+  ) {
     if (!sessionId) return;
 
     setIsAdvancing(true);
@@ -124,9 +130,11 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       const body =
         typeof submittedNumericValue === 'number'
           ? { numericValue: submittedNumericValue }
-          : selectedEdgeId
-            ? { selectedEdgeId }
-            : {};
+          : typeof submittedTextValue === 'string'
+            ? { textValue: submittedTextValue }
+            : selectedEdgeId
+              ? { selectedEdgeId }
+              : {};
 
       const response = await fetch(
         `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/advance`,
@@ -158,6 +166,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
       setNumericValue('');
+      setTextValue('');
     } catch (err) {
       console.error('Failed to advance flow session:', err);
       setError('An unexpected error occurred while advancing the flow.');
@@ -175,6 +184,15 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     }
 
     await advance(undefined, parsedValue);
+  }
+
+  async function submitTextAnswer() {
+    if (textValue.trim() === '') {
+      setError('Please enter some text.');
+      return;
+    }
+
+    await advance(undefined, undefined, textValue.trim());
   }
 
   async function goBack() {
@@ -213,6 +231,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
       setNumericValue('');
+      setTextValue('');
     } catch (err) {
       console.error('Failed to go back in flow session:', err);
       setError('An unexpected error occurred while going back.');
@@ -264,14 +283,6 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     );
   }
 
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-800 bg-red-950 p-6 text-red-300">
-        {error}
-      </div>
-    );
-  }
-
   if (!currentNode) {
     return (
       <div className="rounded-xl border border-red-800 bg-red-950 p-6 text-red-300">
@@ -300,6 +311,12 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
           {isGoingBack ? 'Going back...' : 'Back'}
         </button>
       </div>
+
+      {error && (
+        <div className="mb-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-300">
+          {error}
+        </div>
+      )}
 
       <div className="mb-6">
         <p className="text-sm uppercase tracking-wide text-neutral-400">
@@ -371,7 +388,35 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         )}
 
       {currentNode.type === 'question' &&
-        currentNode.questionType !== 'number' && (
+        currentNode.questionType === 'text' && (
+          <div className="space-y-6">
+            <p className="text-lg leading-7 text-neutral-100">
+              {currentNode.questionText || currentNode.label}
+            </p>
+
+            <div className="space-y-4">
+              <textarea
+                value={textValue}
+                onChange={(e) => setTextValue(e.target.value)}
+                disabled={isAdvancing || isGoingBack}
+                className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-950 px-4 py-3 text-white outline-none transition focus:border-blue-500 disabled:opacity-50"
+                placeholder="Write your answer here"
+              />
+
+              <button
+                onClick={submitTextAnswer}
+                disabled={isAdvancing || isGoingBack}
+                className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
+              >
+                {isAdvancing ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        )}
+
+      {currentNode.type === 'question' &&
+        currentNode.questionType !== 'number' &&
+        currentNode.questionType !== 'text' && (
           <div className="space-y-6">
             <p className="text-lg leading-7 text-neutral-100">
               {currentNode.questionText || currentNode.label}
