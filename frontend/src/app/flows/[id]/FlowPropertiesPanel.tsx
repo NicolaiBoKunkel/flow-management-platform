@@ -36,6 +36,25 @@ type FlowPropertiesPanelProps = {
   handleDeleteEdge: () => void;
 };
 
+function formatGeneratedNumberLabel(
+  operator: NumberOperator,
+  value: string,
+): string {
+  if (value.trim() === '') {
+    return 'No condition configured yet';
+  }
+
+  const operatorMap: Record<NumberOperator, string> = {
+    lt: '<',
+    lte: '<=',
+    gt: '>',
+    gte: '>=',
+    eq: '=',
+  };
+
+  return `${operatorMap[operator]} ${value}`;
+}
+
 export default function FlowPropertiesPanel({
   selectedNodeId,
   selectedEdgeId,
@@ -65,6 +84,8 @@ export default function FlowPropertiesPanel({
   handleUpdateEdgeLabel,
   handleDeleteEdge,
 }: FlowPropertiesPanelProps) {
+  const isNumberEdge = selectedEdgeSourceQuestionType === 'number';
+
   return (
     <aside className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
       <h2 className="mb-4 text-lg font-semibold">Properties</h2>
@@ -214,19 +235,38 @@ export default function FlowPropertiesPanel({
             <p className="text-sm text-neutral-500">ID: {selectedEdgeId}</p>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-300">
-              Edge label
-            </label>
-            <input
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-              value={edgeLabel}
-              onChange={(e) => setEdgeLabel(e.target.value)}
-              placeholder="e.g. Yes / No"
-            />
-          </div>
+          {!isNumberEdge && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-300">
+                Edge label
+              </label>
+              <input
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                value={edgeLabel}
+                onChange={(e) => setEdgeLabel(e.target.value)}
+                placeholder="e.g. Yes / No"
+              />
+            </div>
+          )}
 
-          {selectedEdgeSourceQuestionType === 'number' && (
+          {isNumberEdge && (
+            <div className="rounded-lg border border-blue-900 bg-blue-950/40 p-4">
+              <p className="text-sm font-medium text-blue-300">
+                Edge label is generated automatically
+              </p>
+              <p className="mt-2 text-sm text-blue-200">
+                Generated label:{' '}
+                <span className="font-semibold">
+                  {formatGeneratedNumberLabel(
+                    edgeConditionOperator,
+                    edgeConditionValue,
+                  )}
+                </span>
+              </p>
+            </div>
+          )}
+
+          {isNumberEdge && (
             <div className="space-y-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-300">
@@ -239,11 +279,11 @@ export default function FlowPropertiesPanel({
                     setEdgeConditionOperator(e.target.value as NumberOperator)
                   }
                 >
+                  <option value="eq">Equal (=)</option>
                   <option value="lt">Less than (&lt;)</option>
                   <option value="lte">Less than or equal (&lt;=)</option>
                   <option value="gt">Greater than (&gt;)</option>
                   <option value="gte">Greater than or equal (&gt;=)</option>
-                  <option value="eq">Equal (=)</option>
                 </select>
               </div>
 

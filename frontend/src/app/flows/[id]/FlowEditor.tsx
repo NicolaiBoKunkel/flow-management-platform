@@ -31,6 +31,18 @@ type FlowEditorEdge = Edge & {
   condition?: EdgeCondition;
 };
 
+function formatNumberConditionLabel(condition: EdgeCondition): string {
+  const operatorMap: Record<NumberOperator, string> = {
+    lt: '<',
+    lte: '<=',
+    gt: '>',
+    gte: '>=',
+    eq: '=',
+  };
+
+  return `${operatorMap[condition.operator]} ${condition.value}`;
+}
+
 export default function FlowEditor({
   flowId,
   initialGraph,
@@ -106,7 +118,10 @@ export default function FlowEditor({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      label: edge.label,
+      label:
+        edge.condition?.kind === 'number'
+          ? formatNumberConditionLabel(edge.condition)
+          : edge.label,
       condition: edge.condition,
     }));
   }, [initialGraph, fallbackEdges]);
@@ -221,15 +236,16 @@ export default function FlowEditor({
     setInfoText('');
     setSelectedNodeType('question');
     setQuestionType('singleChoice');
-    setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
     setSelectedEdgeSourceQuestionType(sourceQuestionType);
 
     if (typedEdge.condition?.kind === 'number') {
       setEdgeConditionOperator(typedEdge.condition.operator);
       setEdgeConditionValue(String(typedEdge.condition.value));
+      setEdgeLabel(formatNumberConditionLabel(typedEdge.condition));
     } else {
       setEdgeConditionOperator('eq');
       setEdgeConditionValue('');
+      setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
     }
   }
 
@@ -324,6 +340,7 @@ export default function FlowEditor({
           selectedEdgeSourceQuestionType === 'number';
 
         let condition: EdgeCondition | undefined = undefined;
+        let label = edgeLabel;
 
         if (shouldUseNumberCondition && edgeConditionValue.trim() !== '') {
           condition = {
@@ -331,15 +348,28 @@ export default function FlowEditor({
             operator: edgeConditionOperator,
             value: Number(edgeConditionValue),
           };
+          label = formatNumberConditionLabel(condition);
         }
 
         return {
           ...edge,
-          label: edgeLabel,
+          label,
           condition,
         } as FlowEditorEdge;
       }),
     );
+
+    if (
+      selectedEdgeSourceQuestionType === 'number' &&
+      edgeConditionValue.trim() !== ''
+    ) {
+      const generatedLabel = formatNumberConditionLabel({
+        kind: 'number',
+        operator: edgeConditionOperator,
+        value: Number(edgeConditionValue),
+      });
+      setEdgeLabel(generatedLabel);
+    }
 
     setLocalEditorFeedback(
       'Edge updated in editor. Remember to save the flow.',
@@ -426,12 +456,16 @@ export default function FlowEditor({
         })),
         edges: edges.map((edge) => {
           const typedEdge = edge as FlowEditorEdge;
+          const label =
+            typedEdge.condition?.kind === 'number'
+              ? formatNumberConditionLabel(typedEdge.condition)
+              : edge.label;
 
           return {
             id: edge.id,
             source: edge.source,
             target: edge.target,
-            label: edge.label ? String(edge.label) : undefined,
+            label: label ? String(label) : undefined,
             condition: typedEdge.condition,
           };
         }),
