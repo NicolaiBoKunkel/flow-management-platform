@@ -160,7 +160,9 @@ export class FlowsService {
     }
 
     const startNodes = graph.nodes.filter((node) => node.type === 'start');
-    const questionNodes = graph.nodes.filter((node) => node.type === 'question');
+    const questionNodes = graph.nodes.filter(
+      (node) => node.type === 'question',
+    );
     const endNodes = graph.nodes.filter((node) => node.type === 'end');
 
     if (startNodes.length !== 1) {
@@ -180,14 +182,16 @@ export class FlowsService {
     for (const node of graph.nodes) {
       if (node.type === 'question') {
         if (!node.questionType) {
-          errors.push(`Question node "${node.label}" must have a questionType.`);
+          errors.push(
+            `Question node "${node.label}" must have a questionType.`,
+          );
         } else if (
           node.questionType !== 'singleChoice' &&
           node.questionType !== 'number' &&
           node.questionType !== 'text'
         ) {
           errors.push(
-            `Question node "${node.label}" uses unsupported questionType "${node.questionType}".`,
+            `Question node "${node.label}" uses unsupported questionType "${String(node.questionType)}".`,
           );
         }
       }
@@ -221,7 +225,9 @@ export class FlowsService {
           typeof edge.condition.value !== 'number' ||
           Number.isNaN(edge.condition.value)
         ) {
-          errors.push(`Edge "${edge.id}" must have a valid numeric condition value.`);
+          errors.push(
+            `Edge "${edge.id}" must have a valid numeric condition value.`,
+          );
         }
       }
     }
@@ -232,7 +238,9 @@ export class FlowsService {
       );
 
       if (hasIncomingEdge) {
-        errors.push(`Start node "${startNode.label}" cannot have incoming edges.`);
+        errors.push(
+          `Start node "${startNode.label}" cannot have incoming edges.`,
+        );
       }
     }
 
@@ -247,7 +255,9 @@ export class FlowsService {
     }
 
     for (const node of graph.nodes) {
-      const outgoingEdges = graph.edges.filter((edge) => edge.source === node.id);
+      const outgoingEdges = graph.edges.filter(
+        (edge) => edge.source === node.id,
+      );
 
       if (
         (node.type === 'start' ||
@@ -334,14 +344,18 @@ export class FlowsService {
 
       for (const node of graph.nodes) {
         if (!visited.has(node.id)) {
-          errors.push(`Node "${node.label}" is not reachable from the start node.`);
+          errors.push(
+            `Node "${node.label}" is not reachable from the start node.`,
+          );
         }
       }
 
       const reachableEndNodes = endNodes.filter((node) => visited.has(node.id));
 
       if (reachableEndNodes.length === 0) {
-        errors.push('At least one end node must be reachable from the start node.');
+        errors.push(
+          'At least one end node must be reachable from the start node.',
+        );
       }
     }
 

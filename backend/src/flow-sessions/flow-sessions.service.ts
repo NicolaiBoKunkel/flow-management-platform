@@ -78,7 +78,11 @@ export class FlowSessionsService {
 
     const graph = flow.graph as unknown as FlowGraph;
 
-    if (!graph.nodes || !Array.isArray(graph.nodes) || graph.nodes.length === 0) {
+    if (
+      !graph.nodes ||
+      !Array.isArray(graph.nodes) ||
+      graph.nodes.length === 0
+    ) {
       throw new BadRequestException('Flow graph does not contain any nodes.');
     }
 
@@ -202,7 +206,10 @@ export class FlowSessionsService {
 
     let chosenEdge: FlowEdge | undefined;
 
-    if (currentNode.type === 'question' && currentNode.questionType === 'number') {
+    if (
+      currentNode.type === 'question' &&
+      currentNode.questionType === 'number'
+    ) {
       if (typeof numericValue !== 'number' || Number.isNaN(numericValue)) {
         throw new BadRequestException(
           'numericValue is required for number questions.',
@@ -230,7 +237,10 @@ export class FlowSessionsService {
       }
 
       chosenEdge = matchingEdges[0];
-    } else if (currentNode.type === 'question' && currentNode.questionType === 'text') {
+    } else if (
+      currentNode.type === 'question' &&
+      currentNode.questionType === 'text'
+    ) {
       if (typeof textValue !== 'string' || textValue.trim() === '') {
         throw new BadRequestException(
           'textValue is required for text questions.',
@@ -293,7 +303,9 @@ export class FlowSessionsService {
               selectedEdgeId: chosenEdge.id,
               selectedLabel: chosenEdge.label,
               numericValue:
-                currentNode.questionType === 'number' ? numericValue : undefined,
+                currentNode.questionType === 'number'
+                  ? numericValue
+                  : undefined,
               textValue:
                 currentNode.questionType === 'text'
                   ? textValue?.trim()
@@ -392,10 +404,14 @@ export class FlowSessionsService {
     const previousEntry = newHistory[newHistory.length - 1];
 
     if (!previousEntry) {
-      throw new BadRequestException('Previous history entry could not be found.');
+      throw new BadRequestException(
+        'Previous history entry could not be found.',
+      );
     }
 
-    const previousNode = graph.nodes.find((node) => node.id === previousEntry.nodeId);
+    const previousNode = graph.nodes.find(
+      (node) => node.id === previousEntry.nodeId,
+    );
 
     if (!previousNode) {
       throw new BadRequestException('Previous node not found in flow graph.');

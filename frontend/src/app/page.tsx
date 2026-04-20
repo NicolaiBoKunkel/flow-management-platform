@@ -27,7 +27,9 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetchFlows();
+    void fetch('http://localhost:3001/flows')
+      .then((res) => res.json())
+      .then((data) => setFlows(data));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
