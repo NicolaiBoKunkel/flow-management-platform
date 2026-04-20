@@ -19,7 +19,6 @@ import { getToken } from '../../lib/auth';
 import type {
   DomainNodeType,
   EdgeCondition,
-  FlowEditorProps,
   NumberOperator,
   QuestionType,
 } from './flow-editor.types';
@@ -29,8 +28,43 @@ import {
   mapDomainTypeToReactFlowType,
 } from './flow-editor.utils';
 
+type FlowEditorProps = {
+  flowId: string;
+  ownerId: string | null;
+  initialGraph: {
+    nodes: {
+      id: string;
+      type: 'start' | 'question' | 'end' | 'info';
+      label: string;
+      position: {
+        x: number;
+        y: number;
+      };
+      questionType?: 'singleChoice' | 'number' | 'text';
+      introText?: string;
+      questionText?: string;
+      resultText?: string;
+      infoText?: string;
+    }[];
+    edges: {
+      id: string;
+      source: string;
+      target: string;
+      label?: string;
+      condition?: EdgeCondition;
+    }[];
+  } | null;
+};
+
 type FlowEditorEdge = Edge & {
   condition?: EdgeCondition;
+};
+
+type MeResponse = {
+  id: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 function formatNumberConditionLabel(condition: EdgeCondition): string {
@@ -47,6 +81,7 @@ function formatNumberConditionLabel(condition: EdgeCondition): string {
 
 export default function FlowEditor({
   flowId,
+  ownerId,
   initialGraph,
 }: FlowEditorProps) {
   const fallbackNodes: Node[] = useMemo(
@@ -151,6 +186,35 @@ export default function FlowEditor({
   const [editorMessage, setEditorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<MeResponse | null>(null);
+
+  useEffect(() => {
+    async function fetchMe() {
+      if (!getToken()) {
+        setCurrentUser(null);
+        return;
+      }
+
+      try {
+        const res = await apiFetch('/auth/me');
+
+        if (!res.ok) {
+          setCurrentUser(null);
+          return;
+        }
+
+        const data = (await res.json()) as MeResponse;
+        setCurrentUser(data);
+      } catch {
+        setCurrentUser(null);
+      }
+    }
+
+    void fetchMe();
+  }, []);
+
+  const isOwner = !!currentUser && ownerId === currentUser.id;
+  const canEdit = isOwner;
 
   const startNodeCount = useMemo(() => {
     return nodes.filter(
@@ -180,6 +244,10 @@ export default function FlowEditor({
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (!canEdit) {
+        return;
+      }
+
       setEdges((eds) =>
         addEdge(
           {
@@ -192,10 +260,14 @@ export default function FlowEditor({
       setEditorMessage('Edge added in editor. Remember to save the flow.');
       setMessage('');
     },
-    [setEdges],
+    [canEdit, setEdges],
   );
 
   function handleAddNode(nodeType: DomainNodeType) {
+    if (!canEdit) {
+      return;
+    }
+
     if (nodeType === 'start' && hasStartNode) {
       return;
     }
@@ -252,7 +324,7 @@ export default function FlowEditor({
   }
 
   function handleUpdateNodeContent() {
-    if (!selectedNodeId) return;
+    if (!canEdit || !selectedNodeId) return;
 
     setNodes((nds) =>
       nds.map((node) =>
@@ -282,7 +354,7 @@ export default function FlowEditor({
   }
 
   function handleUpdateNodeType(newType: DomainNodeType) {
-    if (!selectedNodeId) return;
+    if (!canEdit || !selectedNodeId) return;
 
     const currentSelectedNode = nodes.find((node) => node.id === selectedNodeId);
     const currentType =
@@ -330,7 +402,7 @@ export default function FlowEditor({
   }
 
   function handleUpdateEdgeLabel() {
-    if (!selectedEdgeId) return;
+    if (!canEdit || !selectedEdgeId) return;
 
     setEdges((eds) =>
       eds.map((edge) => {
@@ -379,7 +451,7 @@ export default function FlowEditor({
   }
 
   function handleDeleteNode() {
-    if (!selectedNodeId) return;
+    if (!canEdit || !selectedNodeId) return;
 
     setNodes((nds) => nds.filter((node) => node.id !== selectedNodeId));
 
@@ -403,7 +475,7 @@ export default function FlowEditor({
   }
 
   function handleDeleteEdge() {
-    if (!selectedEdgeId) return;
+    if (!canEdit || !selectedEdgeId) return;
 
     setEdges((eds) => eds.filter((edge) => edge.id !== selectedEdgeId));
     setSelectedEdgeId(null);
@@ -422,6 +494,12 @@ export default function FlowEditor({
 
     if (!getToken()) {
       setValidationErrors(['Du skal være logget ind for at gemme flowet.']);
+      setIsSaving(false);
+      return;
+    }
+
+    if (!canEdit) {
+      setValidationErrors(['Kun ejeren af flowet kan redigere det.']);
       setIsSaving(false);
       return;
     }
@@ -516,50 +594,60 @@ export default function FlowEditor({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => handleAddNode('start')}
-            disabled={hasStartNode}
-            className="rounded bg-emerald-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Add Start Node
-          </button>
-
-          <button
-            onClick={() => handleAddNode('question')}
-            className="rounded bg-green-600 px-4 py-2 text-white"
-          >
-            Add Question Node
-          </button>
-
-          <button
-            onClick={() => handleAddNode('info')}
-            className="rounded bg-amber-600 px-4 py-2 text-white"
-          >
-            Add Info Node
-          </button>
-
-          <button
-            onClick={() => handleAddNode('end')}
-            className="rounded bg-purple-600 px-4 py-2 text-white"
-          >
-            Add End Node
-          </button>
-
-          <button
-            onClick={handleSaveFlow}
-            disabled={isSaving}
-            className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
-          >
-            {isSaving ? 'Saving...' : 'Save Flow'}
-          </button>
+      {!canEdit && (
+        <div className="rounded-lg border border-amber-800 bg-amber-950 px-4 py-3 text-amber-300">
+          {!currentUser
+            ? 'You can view this flow graph, but you must be logged in as the owner to edit it.'
+            : 'You can view this flow graph, but only the owner can edit it.'}
         </div>
+      )}
 
-        <p className="mt-3 text-sm text-neutral-400">
-          A flow can only contain one start node.
-        </p>
-      </div>
+      {canEdit && (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleAddNode('start')}
+              disabled={hasStartNode}
+              className="rounded bg-emerald-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Add Start Node
+            </button>
+
+            <button
+              onClick={() => handleAddNode('question')}
+              className="rounded bg-green-600 px-4 py-2 text-white"
+            >
+              Add Question Node
+            </button>
+
+            <button
+              onClick={() => handleAddNode('info')}
+              className="rounded bg-amber-600 px-4 py-2 text-white"
+            >
+              Add Info Node
+            </button>
+
+            <button
+              onClick={() => handleAddNode('end')}
+              className="rounded bg-purple-600 px-4 py-2 text-white"
+            >
+              Add End Node
+            </button>
+
+            <button
+              onClick={handleSaveFlow}
+              disabled={isSaving}
+              className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : 'Save Flow'}
+            </button>
+          </div>
+
+          <p className="mt-3 text-sm text-neutral-400">
+            A flow can only contain one start node.
+          </p>
+        </div>
+      )}
 
       {editorMessage && (
         <div className="rounded-lg border border-amber-800 bg-amber-950 p-3 text-amber-300">
@@ -590,11 +678,14 @@ export default function FlowEditor({
             <ReactFlow
               nodes={nodes}
               edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
+              onNodesChange={canEdit ? onNodesChange : undefined}
+              onEdgesChange={canEdit ? onEdgesChange : undefined}
+              onConnect={canEdit ? onConnect : undefined}
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
+              nodesDraggable={canEdit}
+              nodesConnectable={canEdit}
+              elementsSelectable
               fitView
             >
               <Background color="#525252" gap={16} />
@@ -604,6 +695,7 @@ export default function FlowEditor({
         </div>
 
         <FlowPropertiesPanel
+          canEdit={canEdit}
           selectedNodeId={selectedNodeId}
           selectedEdgeId={selectedEdgeId}
           nodeLabel={nodeLabel}

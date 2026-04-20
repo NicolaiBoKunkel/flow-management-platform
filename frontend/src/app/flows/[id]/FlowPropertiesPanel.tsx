@@ -7,6 +7,7 @@ import type {
 } from './flow-editor.types';
 
 type FlowPropertiesPanelProps = {
+  canEdit: boolean;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   nodeLabel: string;
@@ -56,6 +57,7 @@ function formatGeneratedNumberLabel(
 }
 
 export default function FlowPropertiesPanel({
+  canEdit,
   selectedNodeId,
   selectedEdgeId,
   nodeLabel,
@@ -90,13 +92,21 @@ export default function FlowPropertiesPanel({
     <aside className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
       <h2 className="mb-4 text-lg font-semibold">Properties</h2>
 
-      {!selectedNodeId && !selectedEdgeId && (
+      {!canEdit && (
         <div className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400">
-          Select a node or an edge to edit its properties.
+          You can inspect the selected node or edge, but only the owner can edit
+          properties.
         </div>
       )}
 
-      {selectedNodeId && (
+      {!selectedNodeId && !selectedEdgeId && (
+        <div className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400">
+          Select a node or an edge to {canEdit ? 'edit' : 'inspect'} its
+          properties.
+        </div>
+      )}
+
+      {selectedNodeId && canEdit && (
         <div className="space-y-4">
           <div>
             <h3 className="text-base font-semibold">Selected Node</h3>
@@ -226,7 +236,20 @@ export default function FlowPropertiesPanel({
         </div>
       )}
 
-      {selectedEdgeId && (
+      {selectedNodeId && !canEdit && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">Selected Node</h3>
+            <p className="text-sm text-neutral-500">ID: {selectedNodeId}</p>
+          </div>
+
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
+            Node editing is disabled because you are not the owner of this flow.
+          </div>
+        </div>
+      )}
+
+      {selectedEdgeId && canEdit && (
         <div className="space-y-4">
           <div>
             <h3 className="text-base font-semibold">Selected Edge</h3>
@@ -314,6 +337,19 @@ export default function FlowPropertiesPanel({
             >
               Delete Edge
             </button>
+          </div>
+        </div>
+      )}
+
+      {selectedEdgeId && !canEdit && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">Selected Edge</h3>
+            <p className="text-sm text-neutral-500">ID: {selectedEdgeId}</p>
+          </div>
+
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
+            Edge editing is disabled because you are not the owner of this flow.
           </div>
         </div>
       )}

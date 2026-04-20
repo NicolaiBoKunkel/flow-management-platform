@@ -153,38 +153,50 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl p-8">
+    <main className="mx-auto w-full max-w-6xl p-8 text-white">
       <h1 className="mb-6 text-2xl font-bold">Flow Management Platform</h1>
 
       {!currentUser && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+        <div className="mb-6 rounded-lg border border-amber-800 bg-amber-950 px-4 py-3 text-amber-300">
           You are not logged in. You can browse flows, but creating, editing and
           deleting requires login.
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="mb-8 space-y-4 rounded-xl border bg-white p-6 shadow-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="mb-8 space-y-4 rounded-xl border border-neutral-800 bg-neutral-950 p-6 shadow-sm"
+      >
         <h2 className="text-xl font-semibold">Create Flow</h2>
 
-        {successMessage && <p className="text-green-600">{successMessage}</p>}
-        {errorMessage && <p className="text-red-600">{errorMessage}</p>}
+        {successMessage && (
+          <div className="rounded-lg border border-green-800 bg-green-950 px-3 py-2 text-sm text-green-300">
+            {successMessage}
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300">
+            {errorMessage}
+          </div>
+        )}
 
         <input
-          className="w-full rounded border p-2"
+          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
 
         <input
-          className="w-full rounded border p-2"
+          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           placeholder="Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
 
         <select
-          className="w-full rounded border p-2"
+          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           value={visibility}
           onChange={(e) => setVisibility(e.target.value)}
         >
@@ -194,7 +206,7 @@ export default function Home() {
         </select>
 
         <select
-          className="w-full rounded border p-2"
+          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
@@ -203,7 +215,7 @@ export default function Home() {
           <option value="archived">Archived</option>
         </select>
 
-        <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+        <button className="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500">
           Create Flow
         </button>
       </form>
@@ -212,30 +224,35 @@ export default function Home() {
         <h2 className="mb-4 text-xl font-semibold">Flows</h2>
 
         {flows.length === 0 ? (
-          <p>No flows found.</p>
+          <p className="text-neutral-400">No flows found.</p>
         ) : (
           <ul className="space-y-4">
             {flows.map((flow) => (
-              <li key={flow.id} className="rounded border bg-white p-4 shadow-sm">
+              <li
+                key={flow.id}
+                className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
+              >
                 <h3 className="font-medium">
                   <Link
                     href={`/flows/${flow.id}`}
-                    className="text-blue-600 underline"
+                    className="text-blue-400 underline"
                   >
                     {flow.title}
                   </Link>
                 </h3>
 
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-neutral-400">
                   {flow.status} | {flow.visibility}
                 </p>
 
-                {flow.description && <p className="mt-2">{flow.description}</p>}
+                {flow.description && (
+                  <p className="mt-2 text-neutral-200">{flow.description}</p>
+                )}
 
                 {currentUser && flow.ownerId === currentUser.id && (
                   <button
                     onClick={() => handleDelete(flow.id)}
-                    className="mt-3 rounded bg-red-500 px-3 py-1 text-white"
+                    className="mt-3 rounded bg-red-600 px-3 py-1 text-white transition hover:bg-red-500"
                   >
                     Delete
                   </button>

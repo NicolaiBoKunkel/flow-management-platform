@@ -12,6 +12,7 @@ type FlowGraph = {
       x: number;
       y: number;
     };
+    questionType?: 'singleChoice' | 'number' | 'text';
     introText?: string;
     questionText?: string;
     resultText?: string;
@@ -22,6 +23,11 @@ type FlowGraph = {
     source: string;
     target: string;
     label?: string;
+    condition?: {
+      kind: 'number';
+      operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+      value: number;
+    };
   }[];
 };
 
@@ -31,6 +37,7 @@ type Flow = {
   description: string | null;
   visibility: string;
   status: string;
+  ownerId?: string | null;
   graph?: FlowGraph | null;
   createdAt: string;
   updatedAt: string;
@@ -94,7 +101,11 @@ export default async function FlowDetailPage({
 
       <div className="mt-8">
         <h2 className="mb-4 text-xl font-semibold">Flow Editor</h2>
-        <FlowEditor flowId={flow.id} initialGraph={flow.graph ?? null} />
+        <FlowEditor
+          flowId={flow.id}
+          initialGraph={flow.graph ?? null}
+          ownerId={flow.ownerId ?? null}
+        />
       </div>
     </main>
   );

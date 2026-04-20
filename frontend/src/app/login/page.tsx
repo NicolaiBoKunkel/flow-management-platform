@@ -58,25 +58,27 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-md px-6 py-10">
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <h1 className="mb-2 text-2xl font-bold">Login</h1>
-        <p className="mb-6 text-sm text-neutral-600">
+    <main className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-10 text-white">
+      <div className="w-full rounded-xl border border-neutral-800 bg-neutral-950 p-6 shadow-sm">
+        <h1 className="mb-2 text-2xl font-bold text-white">Login</h1>
+        <p className="mb-6 text-sm text-neutral-400">
           Sign in to create and manage your own flows.
         </p>
 
         {errorMessage && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mb-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300">
             {errorMessage}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
+            <label className="mb-1 block text-sm font-medium text-neutral-300">
+              Email
+            </label>
             <input
               type="email"
-              className="w-full rounded-lg border px-3 py-2 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -84,10 +86,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">Password</label>
+            <label className="mb-1 block text-sm font-medium text-neutral-300">
+              Password
+            </label>
             <input
               type="password"
-              className="w-full rounded-lg border px-3 py-2 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Your password"
@@ -97,15 +101,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-black px-4 py-2 text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        <p className="mt-4 text-sm text-neutral-600">
+        <p className="mt-4 text-sm text-neutral-400">
           No account yet?{' '}
-          <Link href="/register" className="text-blue-600 underline">
+          <Link href="/register" className="text-blue-400 underline">
             Create one
           </Link>
         </p>
