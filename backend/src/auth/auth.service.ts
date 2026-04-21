@@ -28,8 +28,12 @@ export class AuthService {
           password: hashedPassword,
         },
       });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code: string }).code === 'P2002'
+      ) {
         throw new ConflictException('A user with that email already exists');
       }
       throw error;
