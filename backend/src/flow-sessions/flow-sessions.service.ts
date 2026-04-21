@@ -364,8 +364,10 @@ export class FlowSessionsService {
       );
     }
 
-    if (session.status === 'abandoned') {
-      throw new BadRequestException('Cannot go back on an abandoned session.');
+    if (session.status !== 'active') {
+      throw new BadRequestException(
+        `Cannot go back on a session with status "${session.status}".`,
+      );
     }
 
     const flow = await this.prisma.flow.findUnique({

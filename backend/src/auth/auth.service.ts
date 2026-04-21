@@ -17,22 +17,23 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: registerDto.email.toLowerCase() },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('A user with that email already exists');
-    }
-
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: registerDto.email.toLowerCase(),
-        password: hashedPassword,
-      },
-    });
+    let user;
+
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          email: registerDto.email.toLowerCase(),
+          password: hashedPassword,
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('A user with that email already exists');
+      }
+      throw error;
+    }
 
     const token = await this.signToken(user.id, user.email);
 
@@ -86,6 +87,10 @@ export class AuthService {
         updatedAt: true,
       },
     });
+
+    if (!user) {
+      throw new UnauthorizedException('User no longer exists');
+    }
 
     return user;
   }
