@@ -48,6 +48,8 @@ model Flow {
   owner       User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
   sessions    FlowSession[]
+
+  @@index([ownerId])
 }
 
 model FlowSession {
@@ -60,4 +62,6 @@ model FlowSession {
   updatedAt     DateTime          @updatedAt
 
   flow          Flow              @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId, status])
 }
