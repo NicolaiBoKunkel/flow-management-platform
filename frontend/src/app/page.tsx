@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from './lib/api';
 import { getToken } from './lib/auth';
 
@@ -57,8 +57,26 @@ export default function Home() {
           if (data) setCurrentUser(data as MeResponse);
         })
         .catch(() => setCurrentUser(null));
+    } else {
+      setCurrentUser(null);
     }
   }, []);
+
+  const myFlows = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+
+    return flows.filter((flow) => flow.ownerId === currentUser.id);
+  }, [flows, currentUser]);
+
+  const publicFlows = useMemo(() => {
+    return flows.filter(
+      (flow) =>
+        flow.visibility === 'public' &&
+        (!currentUser || flow.ownerId !== currentUser.id),
+    );
+  }, [flows, currentUser]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -155,8 +173,8 @@ export default function Home() {
 
       {!currentUser && (
         <div className="mb-6 rounded-lg border border-amber-800 bg-amber-950 px-4 py-3 text-amber-300">
-          You are not logged in. You can browse flows, but creating, editing and
-          deleting requires login.
+          You are not logged in. You can browse public flows, but creating,
+          editing and deleting requires login.
         </div>
       )}
 
@@ -217,14 +235,57 @@ export default function Home() {
         </button>
       </form>
 
-      <section>
-        <h2 className="mb-4 text-xl font-semibold">Flows</h2>
+      {currentUser && (
+        <section className="mb-10">
+          <h2 className="mb-4 text-xl font-semibold">My Flows</h2>
 
-        {flows.length === 0 ? (
-          <p className="text-neutral-400">No flows found.</p>
+          {myFlows.length === 0 ? (
+            <p className="text-neutral-400">You have not created any flows yet.</p>
+          ) : (
+            <ul className="space-y-4">
+              {myFlows.map((flow) => (
+                <li
+                  key={flow.id}
+                  className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
+                >
+                  <h3 className="font-medium">
+                    <Link
+                      href={`/flows/${flow.id}`}
+                      className="text-blue-400 underline"
+                    >
+                      {flow.title}
+                    </Link>
+                  </h3>
+
+                  <p className="text-sm text-neutral-400">
+                    {flow.status} | {flow.visibility}
+                  </p>
+
+                  {flow.description && (
+                    <p className="mt-2 text-neutral-200">{flow.description}</p>
+                  )}
+
+                  <button
+                    onClick={() => handleDelete(flow.id)}
+                    className="mt-3 rounded bg-red-600 px-3 py-1 text-white transition hover:bg-red-500"
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      <section>
+        <h2 className="mb-4 text-xl font-semibold">Public Flows</h2>
+
+        {publicFlows.length === 0 ? (
+          <p className="text-neutral-400">No public flows found.</p>
         ) : (
           <ul className="space-y-4">
-            {flows.map((flow) => (
+            {publicFlows.map((flow) => (
               <li
                 key={flow.id}
                 className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
@@ -244,15 +305,6 @@ export default function Home() {
 
                 {flow.description && (
                   <p className="mt-2 text-neutral-200">{flow.description}</p>
-                )}
-
-                {currentUser && flow.ownerId === currentUser.id && (
-                  <button
-                    onClick={() => handleDelete(flow.id)}
-                    className="mt-3 rounded bg-red-600 px-3 py-1 text-white transition hover:bg-red-500"
-                  >
-                    Delete
-                  </button>
                 )}
               </li>
             ))}

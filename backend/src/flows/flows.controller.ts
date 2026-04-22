@@ -11,12 +11,13 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { FlowsService } from './flows.service';
 
 type AuthenticatedRequest = Request & {
-  user: {
+  user?: {
     sub: string;
     email: string;
   };
@@ -26,20 +27,22 @@ type AuthenticatedRequest = Request & {
 export class FlowsController {
   constructor(private readonly flowsService: FlowsService) {}
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  findAll() {
-    return this.flowsService.findAll();
+  findAll(@Req() req: AuthenticatedRequest) {
+    return this.flowsService.findAll(req.user?.sub);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('mine')
   findMine(@Req() req: AuthenticatedRequest) {
-    return this.flowsService.findMine(req.user.sub);
+    return this.flowsService.findMine(req.user!.sub);
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.flowsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.flowsService.findOne(id, req.user?.sub);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -48,7 +51,7 @@ export class FlowsController {
     @Body() createFlowDto: CreateFlowDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.flowsService.create(createFlowDto, req.user.sub);
+    return this.flowsService.create(createFlowDto, req.user!.sub);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -58,12 +61,12 @@ export class FlowsController {
     @Body() updateFlowDto: UpdateFlowDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.flowsService.update(id, updateFlowDto, req.user.sub);
+    return this.flowsService.update(id, updateFlowDto, req.user!.sub);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.flowsService.remove(id, req.user.sub);
+    return this.flowsService.remove(id, req.user!.sub);
   }
 }

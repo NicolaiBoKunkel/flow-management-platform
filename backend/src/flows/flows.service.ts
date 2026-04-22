@@ -53,8 +53,15 @@ type NumberInterval = {
 export class FlowsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
+  findAll(userId?: string) {
     return this.prisma.flow.findMany({
+      where: userId
+        ? {
+            OR: [{ ownerId: userId }, { visibility: 'public' }],
+          }
+        : {
+            visibility: 'public',
+          },
       orderBy: {
         createdAt: 'desc',
       },
@@ -72,13 +79,20 @@ export class FlowsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId?: string) {
     const flow = await this.prisma.flow.findUnique({
       where: { id },
     });
 
     if (!flow) {
       throw new NotFoundException(`Flow with id ${id} not found`);
+    }
+
+    const isOwner = !!userId && flow.ownerId === userId;
+    const isPublic = flow.visibility === 'public';
+
+    if (!isPublic && !isOwner) {
+      throw new ForbiddenException('You do not have access to view this flow');
     }
 
     return flow;
