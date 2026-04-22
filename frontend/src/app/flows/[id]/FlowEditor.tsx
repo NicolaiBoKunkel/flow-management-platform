@@ -31,6 +31,14 @@ import {
 type FlowEditorProps = {
   flowId: string;
   ownerId: string | null;
+  accessList: {
+    id: string;
+    role: 'viewer' | 'editor';
+    user: {
+      id: string;
+      email: string;
+    };
+  }[];
   initialGraph: {
     nodes: {
       id: string;
@@ -82,6 +90,7 @@ function formatNumberConditionLabel(condition: EdgeCondition): string {
 export default function FlowEditor({
   flowId,
   ownerId,
+  accessList,
   initialGraph,
 }: FlowEditorProps) {
   const fallbackNodes: Node[] = useMemo(
@@ -214,7 +223,12 @@ export default function FlowEditor({
   }, []);
 
   const isOwner = !!currentUser && ownerId === currentUser.id;
-  const canEdit = isOwner;
+  const isEditor =
+    !!currentUser &&
+    accessList.some(
+      (entry) => entry.user.id === currentUser.id && entry.role === 'editor',
+    );
+  const canEdit = isOwner || isEditor;
 
   const startNodeCount = useMemo(() => {
     return nodes.filter(
@@ -499,7 +513,7 @@ export default function FlowEditor({
     }
 
     if (!canEdit) {
-      setValidationErrors(['Kun ejeren af flowet kan redigere det.']);
+      setValidationErrors(['You do not have permission to edit this flow.']);
       setIsSaving(false);
       return;
     }
@@ -597,8 +611,8 @@ export default function FlowEditor({
       {!canEdit && (
         <div className="rounded-lg border border-amber-800 bg-amber-950 px-4 py-3 text-amber-300">
           {!currentUser
-            ? 'You can view this flow graph, but you must be logged in as the owner to edit it.'
-            : 'You can view this flow graph, but only the owner can edit it.'}
+            ? 'You can view this flow graph, but you must be logged in with editor or owner access to modify it.'
+            : 'You can view this flow graph, but only the owner or a shared editor can modify it.'}
         </div>
       )}
 

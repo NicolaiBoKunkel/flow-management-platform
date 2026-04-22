@@ -4,8 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { FlowAccessRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlowDto } from './dto/create-flow.dto';
+import { ShareFlowDto } from './dto/share-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 
 type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
@@ -57,11 +59,34 @@ export class FlowsService {
     return this.prisma.flow.findMany({
       where: userId
         ? {
-            OR: [{ ownerId: userId }, { visibility: 'public' }],
+            OR: [
+              { ownerId: userId },
+              { visibility: 'public' },
+              {
+                visibility: 'shared',
+                accessList: {
+                  some: {
+                    userId,
+                  },
+                },
+              },
+            ],
           }
         : {
             visibility: 'public',
           },
+      include: {
+        accessList: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -73,6 +98,18 @@ export class FlowsService {
       where: {
         ownerId: userId,
       },
+      include: {
+        accessList: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -82,6 +119,18 @@ export class FlowsService {
   async findOne(id: string, userId?: string) {
     const flow = await this.prisma.flow.findUnique({
       where: { id },
+      include: {
+        accessList: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!flow) {
@@ -90,8 +139,10 @@ export class FlowsService {
 
     const isOwner = !!userId && flow.ownerId === userId;
     const isPublic = flow.visibility === 'public';
+    const hasSharedAccess =
+      !!userId && flow.accessList.some((entry) => entry.userId === userId);
 
-    if (!isPublic && !isOwner) {
+    if (!isPublic && !isOwner && !hasSharedAccess) {
       throw new ForbiddenException('You do not have access to view this flow');
     }
 
@@ -110,9 +161,94 @@ export class FlowsService {
     });
   }
 
+  async getFlowAccessList(flowId: string, userId: string) {
+    const flow = await this.findOwnedFlowOrThrow(flowId, userId);
+
+    return this.prisma.flowAccess.findMany({
+      where: {
+        flowId: flow.id,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async shareFlow(flowId: string, shareFlowDto: ShareFlowDto, userId: string) {
+    const flow = await this.findOwnedFlowOrThrow(flowId, userId);
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: {
+        email: shareFlowDto.email.toLowerCase(),
+      },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException('No registered user found with that email');
+    }
+
+    if (flow.ownerId === targetUser.id) {
+      throw new BadRequestException('You already own this flow');
+    }
+
+    const access = await this.prisma.flowAccess.upsert({
+      where: {
+        flowId_userId: {
+          flowId,
+          userId: targetUser.id,
+        },
+      },
+      update: {
+        role: shareFlowDto.role as FlowAccessRole,
+      },
+      create: {
+        flowId,
+        userId: targetUser.id,
+        role: shareFlowDto.role as FlowAccessRole,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return access;
+  }
+
+  async removeFlowAccess(flowId: string, accessId: string, userId: string) {
+    await this.findOwnedFlowOrThrow(flowId, userId);
+
+    const access = await this.prisma.flowAccess.findUnique({
+      where: { id: accessId },
+    });
+
+    if (!access || access.flowId !== flowId) {
+      throw new NotFoundException('Shared access entry not found');
+    }
+
+    return this.prisma.flowAccess.delete({
+      where: { id: accessId },
+    });
+  }
+
   private async findOwnedFlowOrThrow(id: string, userId: string) {
     const flow = await this.prisma.flow.findUnique({
       where: { id },
+      include: {
+        accessList: true,
+      },
     });
 
     if (!flow) {
@@ -120,6 +256,32 @@ export class FlowsService {
     }
 
     if (!flow.ownerId || flow.ownerId !== userId) {
+      throw new ForbiddenException(
+        'You do not have access to modify this flow',
+      );
+    }
+
+    return flow;
+  }
+
+  private async findEditableFlowOrThrow(id: string, userId: string) {
+    const flow = await this.prisma.flow.findUnique({
+      where: { id },
+      include: {
+        accessList: true,
+      },
+    });
+
+    if (!flow) {
+      throw new NotFoundException(`Flow with id ${id} not found`);
+    }
+
+    const isOwner = flow.ownerId === userId;
+    const editorAccess = flow.accessList.find(
+      (entry) => entry.userId === userId && entry.role === 'editor',
+    );
+
+    if (!isOwner && !editorAccess) {
       throw new ForbiddenException(
         'You do not have access to modify this flow',
       );
@@ -408,7 +570,18 @@ export class FlowsService {
   }
 
   async update(id: string, updateFlowDto: UpdateFlowDto, userId: string) {
-    await this.findOwnedFlowOrThrow(id, userId);
+    const isGraphOnlyUpdate =
+      updateFlowDto.graph !== undefined &&
+      updateFlowDto.title === undefined &&
+      updateFlowDto.description === undefined &&
+      updateFlowDto.visibility === undefined &&
+      updateFlowDto.status === undefined;
+
+    if (isGraphOnlyUpdate) {
+      await this.findEditableFlowOrThrow(id, userId);
+    } else {
+      await this.findOwnedFlowOrThrow(id, userId);
+    }
 
     if (updateFlowDto.graph) {
       const validationErrors = this.validateGraph(

@@ -114,10 +114,10 @@ export default function EditFlowForm({ flow }: { flow: Flow }) {
 
   if (!currentUser) {
     return (
-      <section className="mt-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+      <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-white shadow-sm">
         <h2 className="text-xl font-semibold">Edit Flow</h2>
-        <p className="mt-2 text-sm text-neutral-600">
-          You must be logged in to edit this flow.
+        <p className="mt-2 text-sm text-neutral-400">
+          You must be logged in as the owner to edit flow metadata.
         </p>
       </section>
     );
@@ -125,10 +125,11 @@ export default function EditFlowForm({ flow }: { flow: Flow }) {
 
   if (!isOwner) {
     return (
-      <section className="mt-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+      <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-white shadow-sm">
         <h2 className="text-xl font-semibold">Edit Flow</h2>
-        <p className="mt-2 text-sm text-neutral-600">
-          You are logged in, but you are not the owner of this flow.
+        <p className="mt-2 text-sm text-neutral-400">
+          Only the owner can change flow metadata, visibility, and sharing
+          settings. Shared editors can still modify the graph below.
         </p>
       </section>
     );

@@ -24,32 +24,57 @@ enum FlowSessionStatus {
   abandoned
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum FlowAccessRole {
+  viewer
+  editor
+}
 
-  flows     Flow[]
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  password      String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  flows         Flow[]
+  sharedFlows   FlowAccess[]
+
+  @@index([email])
 }
 
 model Flow {
-  id          String         @id @default(uuid())
-  title       String
-  description String?
-  visibility  FlowVisibility
-  status      FlowStatus
-  graph       Json?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id            String         @id @default(uuid())
+  title         String
+  description   String?
+  visibility    FlowVisibility
+  status        FlowStatus
+  graph         Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  ownerId     String?
-  owner       User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId       String?
+  owner         User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
-  sessions    FlowSession[]
+  sessions      FlowSession[]
+  accessList    FlowAccess[]
 
   @@index([ownerId])
+  @@index([visibility])
+}
+
+model FlowAccess {
+  id            String         @id @default(uuid())
+  flowId        String
+  userId        String
+  role          FlowAccessRole
+  createdAt     DateTime       @default(now())
+
+  flow          Flow           @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, userId])
+  @@index([flowId])
+  @@index([userId])
 }
 
 model FlowSession {

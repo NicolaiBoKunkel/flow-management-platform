@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CreateFlowDto } from './dto/create-flow.dto';
+import { ShareFlowDto } from './dto/share-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { FlowsService } from './flows.service';
 
@@ -46,12 +47,28 @@ export class FlowsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/access')
+  getFlowAccessList(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.flowsService.getFlowAccessList(id, req.user!.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(
     @Body() createFlowDto: CreateFlowDto,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.flowsService.create(createFlowDto, req.user!.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/access')
+  shareFlow(
+    @Param('id') id: string,
+    @Body() shareFlowDto: ShareFlowDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.flowsService.shareFlow(id, shareFlowDto, req.user!.sub);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -68,5 +85,15 @@ export class FlowsController {
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.flowsService.remove(id, req.user!.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/access/:accessId')
+  removeFlowAccess(
+    @Param('id') id: string,
+    @Param('accessId') accessId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.flowsService.removeFlowAccess(id, accessId, req.user!.sub);
   }
 }

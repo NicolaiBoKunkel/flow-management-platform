@@ -5,6 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from './lib/api';
 import { getToken } from './lib/auth';
 
+type FlowAccessEntry = {
+  id: string;
+  role: 'viewer' | 'editor';
+  user: {
+    id: string;
+    email: string;
+  };
+};
+
 type Flow = {
   id: string;
   title: string;
@@ -12,6 +21,7 @@ type Flow = {
   visibility: string;
   status: string;
   ownerId?: string | null;
+  accessList?: FlowAccessEntry[];
 };
 
 type MeResponse = {
@@ -57,8 +67,6 @@ export default function Home() {
           if (data) setCurrentUser(data as MeResponse);
         })
         .catch(() => setCurrentUser(null));
-    } else {
-      setCurrentUser(null);
     }
   }, []);
 
@@ -70,12 +78,27 @@ export default function Home() {
     return flows.filter((flow) => flow.ownerId === currentUser.id);
   }, [flows, currentUser]);
 
-  const publicFlows = useMemo(() => {
+  const sharedWithMeFlows = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+
     return flows.filter(
       (flow) =>
-        flow.visibility === 'public' &&
-        (!currentUser || flow.ownerId !== currentUser.id),
+        flow.ownerId !== currentUser.id &&
+        flow.accessList?.some((entry) => entry.user.id === currentUser.id),
     );
+  }, [flows, currentUser]);
+
+  const publicFlows = useMemo(() => {
+    return flows.filter((flow) => {
+      const isOwner = currentUser ? flow.ownerId === currentUser.id : false;
+      const isSharedWithMe = currentUser
+        ? flow.accessList?.some((entry) => entry.user.id === currentUser.id)
+        : false;
+
+      return flow.visibility === 'public' && !isOwner && !isSharedWithMe;
+    });
   }, [flows, currentUser]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -273,6 +296,54 @@ export default function Home() {
                   </button>
                 </li>
               ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {currentUser && (
+        <section className="mb-10">
+          <h2 className="mb-4 text-xl font-semibold">Shared With Me</h2>
+
+          {sharedWithMeFlows.length === 0 ? (
+            <p className="text-neutral-400">
+              No flows have been shared with you yet.
+            </p>
+          ) : (
+            <ul className="space-y-4">
+              {sharedWithMeFlows.map((flow) => {
+                const myAccess = flow.accessList?.find(
+                  (entry) => entry.user.id === currentUser.id,
+                );
+
+                return (
+                  <li
+                    key={flow.id}
+                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
+                  >
+                    <h3 className="font-medium">
+                      <Link
+                        href={`/flows/${flow.id}`}
+                        className="text-blue-400 underline"
+                      >
+                        {flow.title}
+                      </Link>
+                    </h3>
+
+                    <p className="text-sm text-neutral-400">
+                      {flow.status} | {flow.visibility}
+                    </p>
+
+                    {flow.description && (
+                      <p className="mt-2 text-neutral-200">{flow.description}</p>
+                    )}
+
+                    <p className="mt-2 text-sm text-amber-300">
+                      Your role: {myAccess?.role ?? 'viewer'}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

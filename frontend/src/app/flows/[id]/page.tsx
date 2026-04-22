@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '../../lib/api';
 import EditFlowForm from './EditFlowForm';
 import FlowEditor from './FlowEditor';
-import { apiFetch } from '../../lib/api';
+import SharingPanel from './SharingPanel';
 
 type FlowGraph = {
   nodes: {
@@ -34,6 +35,15 @@ type FlowGraph = {
   }[];
 };
 
+type FlowAccessEntry = {
+  id: string;
+  role: 'viewer' | 'editor';
+  user: {
+    id: string;
+    email: string;
+  };
+};
+
 type Flow = {
   id: string;
   title: string;
@@ -42,6 +52,7 @@ type Flow = {
   status: string;
   ownerId?: string | null;
   graph?: FlowGraph | null;
+  accessList?: FlowAccessEntry[];
   createdAt: string;
   updatedAt: string;
 };
@@ -157,6 +168,7 @@ export default function FlowDetailPage({
       </div>
 
       <EditFlowForm flow={flow} />
+      <SharingPanel flow={flow} />
 
       <div className="mt-8">
         <h2 className="mb-4 text-xl font-semibold">Flow Editor</h2>
@@ -164,6 +176,7 @@ export default function FlowDetailPage({
           flowId={flow.id}
           initialGraph={flow.graph ?? null}
           ownerId={flow.ownerId ?? null}
+          accessList={flow.accessList ?? []}
         />
       </div>
     </main>
