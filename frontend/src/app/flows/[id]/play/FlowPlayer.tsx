@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { apiFetch } from '../../../lib/api';
 
 type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 type QuestionType = 'singleChoice' | 'number' | 'text';
@@ -78,15 +79,9 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     setError('');
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/flows/${flowId}/sessions`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const response = await apiFetch(`/flows/${flowId}/sessions`, {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -136,8 +131,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
               ? { selectedEdgeId }
               : {};
 
-      const response = await fetch(
-        `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/advance`,
+      const response = await apiFetch(
+        `/flows/${flowId}/sessions/${sessionId}/advance`,
         {
           method: 'POST',
           headers: {
@@ -202,8 +197,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     setError('');
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/back`,
+      const response = await apiFetch(
+        `/flows/${flowId}/sessions/${sessionId}/back`,
         {
           method: 'POST',
           headers: {
