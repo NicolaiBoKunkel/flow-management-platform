@@ -16,8 +16,10 @@ export class OptionalJwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authHeader = request.headers.authorization;
+    const jwtSecret = process.env.JWT_SECRET;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith('Bearer ') || !jwtSecret) {
+      request.user = undefined;
       return true;
     }
 
@@ -28,7 +30,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
         sub: string;
         email: string;
       }>(token, {
-        secret: process.env.JWT_SECRET || 'dev-secret-change-me',
+        secret: jwtSecret,
       });
 
       request.user = {
