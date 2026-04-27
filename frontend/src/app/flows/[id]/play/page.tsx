@@ -3,35 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import type { FlowGraph } from '../flow-editor.types';
 import FlowPlayer from './FlowPlayer';
-
-type FlowGraph = {
-  nodes: {
-    id: string;
-    type: 'start' | 'question' | 'end' | 'info';
-    label: string;
-    position: {
-      x: number;
-      y: number;
-    };
-    questionType?: 'singleChoice' | 'number' | 'text';
-    introText?: string;
-    questionText?: string;
-    resultText?: string;
-    infoText?: string;
-  }[];
-  edges: {
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-    condition?: {
-      kind: 'number';
-      operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
-      value: number;
-    };
-  }[];
-};
 
 type Flow = {
   id: string;

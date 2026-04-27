@@ -10,28 +10,32 @@ export type EdgeCondition = {
   value: number;
 };
 
+export type FlowNode = {
+  id: string;
+  type: DomainNodeType;
+  label: string;
+  position: {
+    x: number;
+    y: number;
+  };
+  questionType?: QuestionType;
+  introText?: string;
+  questionText?: string;
+  resultText?: string;
+  infoText?: string;
+};
+
+export type FlowEdge = {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  condition?: EdgeCondition;
+};
+
 export type FlowGraph = {
-  nodes: {
-    id: string;
-    type: DomainNodeType;
-    label: string;
-    position: {
-      x: number;
-      y: number;
-    };
-    questionType?: QuestionType;
-    introText?: string;
-    questionText?: string;
-    resultText?: string;
-    infoText?: string;
-  }[];
-  edges: {
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-    condition?: EdgeCondition;
-  }[];
+  nodes: FlowNode[];
+  edges: FlowEdge[];
 };
 
 export type FlowEditorProps = {

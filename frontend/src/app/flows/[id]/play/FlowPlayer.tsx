@@ -2,41 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
-
-type DomainNodeType = 'start' | 'question' | 'end' | 'info';
-type QuestionType = 'singleChoice' | 'number' | 'text';
-
-type FlowNode = {
-  id: string;
-  type: DomainNodeType;
-  label: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  questionType?: QuestionType;
-  introText?: string;
-  questionText?: string;
-  resultText?: string;
-  infoText?: string;
-};
-
-type FlowEdge = {
-  id: string;
-  source: string;
-  target: string;
-  label?: string;
-  condition?: {
-    kind: 'number';
-    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
-    value: number;
-  };
-};
-
-type FlowGraph = {
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-};
+import type {
+  FlowEdge,
+  FlowGraph,
+  FlowNode,
+} from '../flow-editor.types';
 
 type FlowPlayerProps = {
   flowId: string;
