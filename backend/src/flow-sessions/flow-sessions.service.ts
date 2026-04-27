@@ -3,39 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  FlowEdge,
+  FlowGraph,
+  FlowNode,
+} from '../flows/types/flow-graph.types';
 import { PrismaService } from '../prisma/prisma.service';
-
-type FlowNode = {
-  id: string;
-  type: 'start' | 'question' | 'end' | 'info';
-  label: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  questionType?: 'singleChoice' | 'number' | 'text';
-  introText?: string;
-  questionText?: string;
-  resultText?: string;
-  infoText?: string;
-};
-
-type FlowEdge = {
-  id: string;
-  source: string;
-  target: string;
-  label?: string;
-  condition?: {
-    kind: 'number';
-    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
-    value: number;
-  };
-};
-
-type FlowGraph = {
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-};
 
 type FlowSessionHistoryEntry = {
   nodeId: string;
