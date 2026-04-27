@@ -1,41 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-
-type DomainNodeType = 'start' | 'question' | 'end' | 'info';
-type QuestionType = 'singleChoice' | 'number' | 'text';
-
-type FlowNode = {
-  id: string;
-  type: DomainNodeType;
-  label: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  questionType?: QuestionType;
-  introText?: string;
-  questionText?: string;
-  resultText?: string;
-  infoText?: string;
-};
-
-type FlowEdge = {
-  id: string;
-  source: string;
-  target: string;
-  label?: string;
-  condition?: {
-    kind: 'number';
-    operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
-    value: number;
-  };
-};
-
-type FlowGraph = {
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-};
+import { apiFetch } from '../../../lib/api';
+import type {
+  FlowEdge,
+  FlowGraph,
+  FlowNode,
+} from '../flow-editor.types';
 
 type FlowPlayerProps = {
   flowId: string;
@@ -78,15 +49,9 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     setError('');
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/flows/${flowId}/sessions`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const response = await apiFetch(`/flows/${flowId}/sessions`, {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -136,8 +101,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
               ? { selectedEdgeId }
               : {};
 
-      const response = await fetch(
-        `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/advance`,
+      const response = await apiFetch(
+        `/flows/${flowId}/sessions/${sessionId}/advance`,
         {
           method: 'POST',
           headers: {
@@ -202,8 +167,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     setError('');
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/flows/${flowId}/sessions/${sessionId}/back`,
+      const response = await apiFetch(
+        `/flows/${flowId}/sessions/${sessionId}/back`,
         {
           method: 'POST',
           headers: {

@@ -1,28 +1,10 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import FlowPlayer from './FlowPlayer';
+'use client';
 
-type FlowGraph = {
-  nodes: {
-    id: string;
-    type: 'start' | 'question' | 'end' | 'info';
-    label: string;
-    position: {
-      x: number;
-      y: number;
-    };
-    introText?: string;
-    questionText?: string;
-    resultText?: string;
-    infoText?: string;
-  }[];
-  edges: {
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-  }[];
-};
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../../../lib/api';
+import type { FlowGraph } from '../flow-editor.types';
+import FlowPlayer from './FlowPlayer';
 
 type Flow = {
   id: string;
@@ -33,32 +15,86 @@ type Flow = {
   graph?: FlowGraph | null;
 };
 
-async function getFlow(id: string): Promise<Flow | null> {
-  const res = await fetch(`http://localhost:3001/flows/${id}`, {
-    cache: 'no-store',
-  });
-
-  if (res.status === 404) {
-    return null;
-  }
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch flow');
-  }
-
-  return res.json();
-}
-
-export default async function FlowPlayPage({
+export default function FlowPlayPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const flow = await getFlow(id);
+  const [flow, setFlow] = useState<Flow | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isForbidden, setIsForbidden] = useState(false);
+  const [isNotFound, setIsNotFound] = useState(false);
 
-  if (!flow) {
-    notFound();
+  useEffect(() => {
+    async function resolveParamsAndFetch() {
+      const resolvedParams = await params;
+      const id = resolvedParams.id;
+
+      try {
+        const res = await apiFetch(`/flows/${id}`);
+
+        if (res.status === 403) {
+          setIsForbidden(true);
+          setFlow(null);
+          return;
+        }
+
+        if (res.status === 404) {
+          setIsNotFound(true);
+          setFlow(null);
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch flow');
+        }
+
+        const data = (await res.json()) as Flow;
+        setFlow(data);
+      } catch (error) {
+        console.error('Failed to fetch flow:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void resolveParamsAndFetch();
+  }, [params]);
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-neutral-950 p-8 text-white">
+        <div className="mx-auto max-w-3xl rounded-xl border border-neutral-800 bg-neutral-900 p-6">
+          <p className="text-neutral-300">Loading flow...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (isForbidden) {
+    return (
+      <main className="min-h-screen bg-neutral-950 p-8 text-white">
+        <div className="mx-auto max-w-3xl rounded-xl border border-red-800 bg-red-950 p-6">
+          <h1 className="mb-2 text-2xl font-bold">Access denied</h1>
+          <p className="text-red-200">
+            You do not have permission to play this flow.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (isNotFound || !flow) {
+    return (
+      <main className="min-h-screen bg-neutral-950 p-8 text-white">
+        <div className="mx-auto max-w-3xl rounded-xl border border-neutral-800 bg-neutral-900 p-6">
+          <h1 className="mb-2 text-2xl font-bold">Flow not found</h1>
+          <p className="text-neutral-300">
+            The requested flow could not be found.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (

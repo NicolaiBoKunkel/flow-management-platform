@@ -1,8 +1,8 @@
+export type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+
 export type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
 export type QuestionType = 'singleChoice' | 'number' | 'text';
-
-export type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
 
 export type EdgeCondition = {
   kind: 'number';
@@ -36,9 +36,4 @@ export type FlowEdge = {
 export type FlowGraph = {
   nodes: FlowNode[];
   edges: FlowEdge[];
-};
-
-export type FlowEditorProps = {
-  flowId: string;
-  initialGraph?: FlowGraph | null;
 };

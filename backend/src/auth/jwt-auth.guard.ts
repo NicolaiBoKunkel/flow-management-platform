@@ -19,6 +19,12 @@ export class JwtAuthGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      throw new UnauthorizedException('JWT secret is not configured');
+    }
+
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authHeader = request.headers.authorization;
 
@@ -35,7 +41,7 @@ export class JwtAuthGuard implements CanActivate {
         sub: string;
         email: string;
       }>(token, {
-        secret: process.env.JWT_SECRET || 'dev-secret-change-me',
+        secret: jwtSecret,
       });
 
       request.user = {

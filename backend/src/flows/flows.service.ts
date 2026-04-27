@@ -9,40 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { ShareFlowDto } from './dto/share-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
-
-type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
-
-type FlowNode = {
-  id: string;
-  type: 'start' | 'question' | 'end' | 'info';
-  label: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  questionType?: 'singleChoice' | 'number' | 'text';
-  introText?: string;
-  questionText?: string;
-  resultText?: string;
-  infoText?: string;
-};
-
-type FlowEdge = {
-  id: string;
-  source: string;
-  target: string;
-  label?: string;
-  condition?: {
-    kind: 'number';
-    operator: NumberOperator;
-    value: number;
-  };
-};
-
-type FlowGraph = {
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-};
+import { FlowEdge, FlowGraph } from './types/flow-graph.types';
 
 type NumberInterval = {
   min: number;
@@ -199,7 +166,7 @@ export class FlowsService {
       throw new BadRequestException('You already own this flow');
     }
 
-    const access = await this.prisma.flowAccess.upsert({
+    return this.prisma.flowAccess.upsert({
       where: {
         flowId_userId: {
           flowId,
@@ -223,8 +190,6 @@ export class FlowsService {
         },
       },
     });
-
-    return access;
   }
 
   async removeFlowAccess(flowId: string, accessId: string, userId: string) {

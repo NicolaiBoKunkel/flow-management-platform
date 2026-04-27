@@ -1,12 +1,26 @@
-import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
+function requireEnv(name: string) {
+  if (!process.env[name]) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+}
+
 async function bootstrap() {
+  requireEnv('DATABASE_URL');
+  requireEnv('JWT_SECRET');
+
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
+    : ['http://localhost:3000'];
+
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: allowedOrigins,
+    credentials: true,
   });
 
   app.useGlobalPipes(
@@ -19,4 +33,8 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3001);
 }
-void bootstrap();
+
+bootstrap().catch((err) => {
+  console.error('Failed to start app:', err);
+  process.exit(1);
+});
