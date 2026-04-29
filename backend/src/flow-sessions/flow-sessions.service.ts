@@ -102,6 +102,18 @@ export class FlowSessionsService {
     numericValue: number,
     condition: NonNullable<FlowEdge['condition']>,
   ): boolean {
+    if (condition.kind === 'numberRange') {
+      const matchesMin = condition.minInclusive
+        ? numericValue >= condition.min
+        : numericValue > condition.min;
+
+      const matchesMax = condition.maxInclusive
+        ? numericValue <= condition.max
+        : numericValue < condition.max;
+
+      return matchesMin && matchesMax;
+    }
+
     switch (condition.operator) {
       case 'lt':
         return numericValue < condition.value;
@@ -190,7 +202,11 @@ export class FlowSessionsService {
       }
 
       const matchingEdges = outgoingEdges.filter((edge) => {
-        if (!edge.condition || edge.condition.kind !== 'number') {
+        if (
+          !edge.condition ||
+          (edge.condition.kind !== 'number' &&
+            edge.condition.kind !== 'numberRange')
+        ) {
           return false;
         }
 

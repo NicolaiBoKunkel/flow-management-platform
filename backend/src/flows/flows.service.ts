@@ -258,7 +258,20 @@ export class FlowsService {
   private toNumberInterval(edge: FlowEdge): NumberInterval | null {
     const condition = edge.condition;
 
-    if (!condition || condition.kind !== 'number') {
+    if (!condition) {
+      return null;
+    }
+
+    if (condition.kind === 'numberRange') {
+      return {
+        min: condition.min,
+        minInclusive: condition.minInclusive,
+        max: condition.max,
+        maxInclusive: condition.maxInclusive,
+      };
+    }
+
+    if (condition.kind !== 'number') {
       return null;
     }
 
@@ -383,23 +396,56 @@ export class FlowsService {
       }
 
       if (edge.condition) {
-        if (edge.condition.kind !== 'number') {
+        if (
+          edge.condition.kind !== 'number' &&
+          edge.condition.kind !== 'numberRange'
+        ) {
           errors.push(`Edge "${edge.id}" has an unsupported condition kind.`);
         }
 
-        if (
-          !['lt', 'lte', 'gt', 'gte', 'eq'].includes(edge.condition.operator)
-        ) {
-          errors.push(`Edge "${edge.id}" has an invalid number operator.`);
+        if (edge.condition.kind === 'number') {
+          if (
+            !['lt', 'lte', 'gt', 'gte', 'eq'].includes(edge.condition.operator)
+          ) {
+            errors.push(`Edge "${edge.id}" has an invalid number operator.`);
+          }
+
+          if (
+            typeof edge.condition.value !== 'number' ||
+            Number.isNaN(edge.condition.value)
+          ) {
+            errors.push(
+              `Edge "${edge.id}" must have a valid numeric condition value.`,
+            );
+          }
         }
 
-        if (
-          typeof edge.condition.value !== 'number' ||
-          Number.isNaN(edge.condition.value)
-        ) {
-          errors.push(
-            `Edge "${edge.id}" must have a valid numeric condition value.`,
-          );
+        if (edge.condition.kind === 'numberRange') {
+          if (
+            typeof edge.condition.min !== 'number' ||
+            Number.isNaN(edge.condition.min) ||
+            typeof edge.condition.max !== 'number' ||
+            Number.isNaN(edge.condition.max)
+          ) {
+            errors.push(
+              `Edge "${edge.id}" must have valid numeric range values.`,
+            );
+          }
+
+          if (edge.condition.min > edge.condition.max) {
+            errors.push(
+              `Edge "${edge.id}" has a number range where min is greater than max.`,
+            );
+          }
+
+          if (
+            edge.condition.min === edge.condition.max &&
+            (!edge.condition.minInclusive || !edge.condition.maxInclusive)
+          ) {
+            errors.push(
+              `Edge "${edge.id}" has an empty number range because min and max are equal but not both inclusive.`,
+            );
+          }
         }
       }
     }
@@ -447,6 +493,16 @@ export class FlowsService {
           if (!edge.condition) {
             errors.push(
               `All outgoing edges from number question "${node.label}" must have a numeric condition.`,
+            );
+          }
+
+          if (
+            edge.condition &&
+            edge.condition.kind !== 'number' &&
+            edge.condition.kind !== 'numberRange'
+          ) {
+            errors.push(
+              `All outgoing edges from number question "${node.label}" must use numeric conditions.`,
             );
           }
         }

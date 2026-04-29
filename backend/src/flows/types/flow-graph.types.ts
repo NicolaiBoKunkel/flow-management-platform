@@ -4,11 +4,21 @@ export type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
 export type QuestionType = 'singleChoice' | 'number' | 'text';
 
-export type EdgeCondition = {
+export type SingleNumberCondition = {
   kind: 'number';
   operator: NumberOperator;
   value: number;
 };
+
+export type NumberRangeCondition = {
+  kind: 'numberRange';
+  min: number;
+  max: number;
+  minInclusive: boolean;
+  maxInclusive: boolean;
+};
+
+export type EdgeCondition = SingleNumberCondition | NumberRangeCondition;
 
 export type FlowNode = {
   id: string;
