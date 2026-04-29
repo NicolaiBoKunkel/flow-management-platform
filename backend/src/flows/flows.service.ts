@@ -336,6 +336,61 @@ export class FlowsService {
     return true;
   }
 
+  private hasFullNumberCoverage(intervals: NumberInterval[]): boolean {
+    if (intervals.length === 0) {
+      return false;
+    }
+
+    const sortedIntervals = [...intervals].sort((a, b) => {
+      if (a.min !== b.min) {
+        return a.min - b.min;
+      }
+
+      if (a.minInclusive === b.minInclusive) {
+        return 0;
+      }
+
+      return a.minInclusive ? -1 : 1;
+    });
+
+    const firstInterval = sortedIntervals[0];
+
+    if (firstInterval.min !== Number.NEGATIVE_INFINITY) {
+      return false;
+    }
+
+    let currentCoverageEnd = firstInterval.max;
+    let currentCoverageEndInclusive = firstInterval.maxInclusive;
+
+    for (let i = 1; i < sortedIntervals.length; i++) {
+      const nextInterval = sortedIntervals[i];
+
+      if (nextInterval.min > currentCoverageEnd) {
+        return false;
+      }
+
+      if (
+        nextInterval.min === currentCoverageEnd &&
+        !currentCoverageEndInclusive &&
+        !nextInterval.minInclusive
+      ) {
+        return false;
+      }
+
+      if (
+        nextInterval.max > currentCoverageEnd ||
+        (nextInterval.max === currentCoverageEnd &&
+          nextInterval.maxInclusive &&
+          !currentCoverageEndInclusive)
+      ) {
+        currentCoverageEnd = nextInterval.max;
+        currentCoverageEndInclusive = nextInterval.maxInclusive;
+      }
+    }
+
+    return currentCoverageEnd === Number.POSITIVE_INFINITY;
+  }
+
   private validateGraph(graph: FlowGraph): string[] {
     const errors: string[] = [];
 
@@ -507,6 +562,10 @@ export class FlowsService {
           }
         }
 
+        const intervals = outgoingEdges
+          .map((edge) => this.toNumberInterval(edge))
+          .filter((interval): interval is NumberInterval => interval !== null);
+
         for (let i = 0; i < outgoingEdges.length; i++) {
           for (let j = i + 1; j < outgoingEdges.length; j++) {
             const firstEdge = outgoingEdges[i];
@@ -525,6 +584,16 @@ export class FlowsService {
               );
             }
           }
+        }
+
+        if (
+          outgoingEdges.length > 0 &&
+          intervals.length === outgoingEdges.length &&
+          !this.hasFullNumberCoverage(intervals)
+        ) {
+          errors.push(
+            `Number question "${node.label}" has gaps in its conditions. Numeric conditions must cover all possible values.`,
+          );
         }
       }
 
