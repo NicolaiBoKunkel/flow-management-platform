@@ -2,6 +2,7 @@
 
 import type {
   DomainNodeType,
+  NumberConditionMode,
   NumberOperator,
   QuestionType,
 } from './flow-editor.types';
@@ -26,10 +27,22 @@ type FlowPropertiesPanelProps = {
   questionType: QuestionType;
   setQuestionType: React.Dispatch<React.SetStateAction<QuestionType>>;
   selectedEdgeSourceQuestionType: QuestionType | null;
+  numberConditionMode: NumberConditionMode;
+  setNumberConditionMode: React.Dispatch<
+    React.SetStateAction<NumberConditionMode>
+  >;
   edgeConditionOperator: NumberOperator;
   setEdgeConditionOperator: React.Dispatch<React.SetStateAction<NumberOperator>>;
   edgeConditionValue: string;
   setEdgeConditionValue: React.Dispatch<React.SetStateAction<string>>;
+  edgeConditionMin: string;
+  setEdgeConditionMin: React.Dispatch<React.SetStateAction<string>>;
+  edgeConditionMax: string;
+  setEdgeConditionMax: React.Dispatch<React.SetStateAction<string>>;
+  edgeConditionMinInclusive: boolean;
+  setEdgeConditionMinInclusive: React.Dispatch<React.SetStateAction<boolean>>;
+  edgeConditionMaxInclusive: boolean;
+  setEdgeConditionMaxInclusive: React.Dispatch<React.SetStateAction<boolean>>;
   handleUpdateNodeType: (newType: DomainNodeType) => void;
   handleUpdateNodeContent: () => void;
   handleDeleteNode: () => void;
@@ -38,9 +51,25 @@ type FlowPropertiesPanelProps = {
 };
 
 function formatGeneratedNumberLabel(
+  mode: NumberConditionMode,
   operator: NumberOperator,
   value: string,
+  min: string,
+  max: string,
+  minInclusive: boolean,
+  maxInclusive: boolean,
 ): string {
+  if (mode === 'range') {
+    if (min.trim() === '' || max.trim() === '') {
+      return 'No range configured yet';
+    }
+
+    const leftBracket = minInclusive ? '[' : '(';
+    const rightBracket = maxInclusive ? ']' : ')';
+
+    return `${leftBracket}${min} - ${max}${rightBracket}`;
+  }
+
   if (value.trim() === '') {
     return 'No condition configured yet';
   }
@@ -76,10 +105,20 @@ export default function FlowPropertiesPanel({
   questionType,
   setQuestionType,
   selectedEdgeSourceQuestionType,
+  numberConditionMode,
+  setNumberConditionMode,
   edgeConditionOperator,
   setEdgeConditionOperator,
   edgeConditionValue,
   setEdgeConditionValue,
+  edgeConditionMin,
+  setEdgeConditionMin,
+  edgeConditionMax,
+  setEdgeConditionMax,
+  edgeConditionMinInclusive,
+  setEdgeConditionMinInclusive,
+  edgeConditionMaxInclusive,
+  setEdgeConditionMaxInclusive,
   handleUpdateNodeType,
   handleUpdateNodeContent,
   handleDeleteNode,
@@ -279,8 +318,13 @@ export default function FlowPropertiesPanel({
                 Generated label:{' '}
                 <span className="font-semibold">
                   {formatGeneratedNumberLabel(
+                    numberConditionMode,
                     edgeConditionOperator,
                     edgeConditionValue,
+                    edgeConditionMin,
+                    edgeConditionMax,
+                    edgeConditionMinInclusive,
+                    edgeConditionMaxInclusive,
                   )}
                 </span>
               </p>
@@ -291,35 +335,113 @@ export default function FlowPropertiesPanel({
             <div className="space-y-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-300">
-                  Number condition operator
+                  Number condition type
                 </label>
                 <select
                   className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                  value={edgeConditionOperator}
+                  value={numberConditionMode}
                   onChange={(e) =>
-                    setEdgeConditionOperator(e.target.value as NumberOperator)
+                    setNumberConditionMode(
+                      e.target.value as NumberConditionMode,
+                    )
                   }
                 >
-                  <option value="eq">Equal (=)</option>
-                  <option value="lt">Less than (&lt;)</option>
-                  <option value="lte">Less than or equal (&lt;=)</option>
-                  <option value="gt">Greater than (&gt;)</option>
-                  <option value="gte">Greater than or equal (&gt;=)</option>
+                  <option value="single">Single comparison</option>
+                  <option value="range">Range / between</option>
                 </select>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-300">
-                  Number condition value
-                </label>
-                <input
-                  type="number"
-                  className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
-                  value={edgeConditionValue}
-                  onChange={(e) => setEdgeConditionValue(e.target.value)}
-                  placeholder="e.g. 25000"
-                />
-              </div>
+              {numberConditionMode === 'single' && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-300">
+                      Number condition operator
+                    </label>
+                    <select
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                      value={edgeConditionOperator}
+                      onChange={(e) =>
+                        setEdgeConditionOperator(
+                          e.target.value as NumberOperator,
+                        )
+                      }
+                    >
+                      <option value="eq">Equal (=)</option>
+                      <option value="lt">Less than (&lt;)</option>
+                      <option value="lte">Less than or equal (&lt;=)</option>
+                      <option value="gt">Greater than (&gt;)</option>
+                      <option value="gte">
+                        Greater than or equal (&gt;=)
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-300">
+                      Number condition value
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                      value={edgeConditionValue}
+                      onChange={(e) => setEdgeConditionValue(e.target.value)}
+                      placeholder="e.g. 25000"
+                    />
+                  </div>
+                </>
+              )}
+
+              {numberConditionMode === 'range' && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-300">
+                      Minimum value
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                      value={edgeConditionMin}
+                      onChange={(e) => setEdgeConditionMin(e.target.value)}
+                      placeholder="e.g. 18"
+                    />
+
+                    <label className="mt-2 flex items-center gap-2 text-sm text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={edgeConditionMinInclusive}
+                        onChange={(e) =>
+                          setEdgeConditionMinInclusive(e.target.checked)
+                        }
+                      />
+                      Include minimum value
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-300">
+                      Maximum value
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                      value={edgeConditionMax}
+                      onChange={(e) => setEdgeConditionMax(e.target.value)}
+                      placeholder="e.g. 60"
+                    />
+
+                    <label className="mt-2 flex items-center gap-2 text-sm text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={edgeConditionMaxInclusive}
+                        onChange={(e) =>
+                          setEdgeConditionMaxInclusive(e.target.checked)
+                        }
+                      />
+                      Include maximum value
+                    </label>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

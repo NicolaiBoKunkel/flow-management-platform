@@ -4,11 +4,23 @@ export type QuestionType = 'singleChoice' | 'number' | 'text';
 
 export type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
 
-export type EdgeCondition = {
+export type NumberConditionMode = 'single' | 'range';
+
+export type SingleNumberCondition = {
   kind: 'number';
   operator: NumberOperator;
   value: number;
 };
+
+export type NumberRangeCondition = {
+  kind: 'numberRange';
+  min: number;
+  max: number;
+  minInclusive: boolean;
+  maxInclusive: boolean;
+};
+
+export type EdgeCondition = SingleNumberCondition | NumberRangeCondition;
 
 export type FlowNode = {
   id: string;

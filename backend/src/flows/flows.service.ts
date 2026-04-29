@@ -258,7 +258,20 @@ export class FlowsService {
   private toNumberInterval(edge: FlowEdge): NumberInterval | null {
     const condition = edge.condition;
 
-    if (!condition || condition.kind !== 'number') {
+    if (!condition) {
+      return null;
+    }
+
+    if (condition.kind === 'numberRange') {
+      return {
+        min: condition.min,
+        minInclusive: condition.minInclusive,
+        max: condition.max,
+        maxInclusive: condition.maxInclusive,
+      };
+    }
+
+    if (condition.kind !== 'number') {
       return null;
     }
 
@@ -323,6 +336,61 @@ export class FlowsService {
     return true;
   }
 
+  private hasFullNumberCoverage(intervals: NumberInterval[]): boolean {
+    if (intervals.length === 0) {
+      return false;
+    }
+
+    const sortedIntervals = [...intervals].sort((a, b) => {
+      if (a.min !== b.min) {
+        return a.min - b.min;
+      }
+
+      if (a.minInclusive === b.minInclusive) {
+        return 0;
+      }
+
+      return a.minInclusive ? -1 : 1;
+    });
+
+    const firstInterval = sortedIntervals[0];
+
+    if (firstInterval.min !== Number.NEGATIVE_INFINITY) {
+      return false;
+    }
+
+    let currentCoverageEnd = firstInterval.max;
+    let currentCoverageEndInclusive = firstInterval.maxInclusive;
+
+    for (let i = 1; i < sortedIntervals.length; i++) {
+      const nextInterval = sortedIntervals[i];
+
+      if (nextInterval.min > currentCoverageEnd) {
+        return false;
+      }
+
+      if (
+        nextInterval.min === currentCoverageEnd &&
+        !currentCoverageEndInclusive &&
+        !nextInterval.minInclusive
+      ) {
+        return false;
+      }
+
+      if (
+        nextInterval.max > currentCoverageEnd ||
+        (nextInterval.max === currentCoverageEnd &&
+          nextInterval.maxInclusive &&
+          !currentCoverageEndInclusive)
+      ) {
+        currentCoverageEnd = nextInterval.max;
+        currentCoverageEndInclusive = nextInterval.maxInclusive;
+      }
+    }
+
+    return currentCoverageEnd === Number.POSITIVE_INFINITY;
+  }
+
   private validateGraph(graph: FlowGraph): string[] {
     const errors: string[] = [];
 
@@ -383,23 +451,56 @@ export class FlowsService {
       }
 
       if (edge.condition) {
-        if (edge.condition.kind !== 'number') {
+        if (
+          edge.condition.kind !== 'number' &&
+          edge.condition.kind !== 'numberRange'
+        ) {
           errors.push(`Edge "${edge.id}" has an unsupported condition kind.`);
         }
 
-        if (
-          !['lt', 'lte', 'gt', 'gte', 'eq'].includes(edge.condition.operator)
-        ) {
-          errors.push(`Edge "${edge.id}" has an invalid number operator.`);
+        if (edge.condition.kind === 'number') {
+          if (
+            !['lt', 'lte', 'gt', 'gte', 'eq'].includes(edge.condition.operator)
+          ) {
+            errors.push(`Edge "${edge.id}" has an invalid number operator.`);
+          }
+
+          if (
+            typeof edge.condition.value !== 'number' ||
+            Number.isNaN(edge.condition.value)
+          ) {
+            errors.push(
+              `Edge "${edge.id}" must have a valid numeric condition value.`,
+            );
+          }
         }
 
-        if (
-          typeof edge.condition.value !== 'number' ||
-          Number.isNaN(edge.condition.value)
-        ) {
-          errors.push(
-            `Edge "${edge.id}" must have a valid numeric condition value.`,
-          );
+        if (edge.condition.kind === 'numberRange') {
+          if (
+            typeof edge.condition.min !== 'number' ||
+            Number.isNaN(edge.condition.min) ||
+            typeof edge.condition.max !== 'number' ||
+            Number.isNaN(edge.condition.max)
+          ) {
+            errors.push(
+              `Edge "${edge.id}" must have valid numeric range values.`,
+            );
+          }
+
+          if (edge.condition.min > edge.condition.max) {
+            errors.push(
+              `Edge "${edge.id}" has a number range where min is greater than max.`,
+            );
+          }
+
+          if (
+            edge.condition.min === edge.condition.max &&
+            (!edge.condition.minInclusive || !edge.condition.maxInclusive)
+          ) {
+            errors.push(
+              `Edge "${edge.id}" has an empty number range because min and max are equal but not both inclusive.`,
+            );
+          }
         }
       }
     }
@@ -449,7 +550,21 @@ export class FlowsService {
               `All outgoing edges from number question "${node.label}" must have a numeric condition.`,
             );
           }
+
+          if (
+            edge.condition &&
+            edge.condition.kind !== 'number' &&
+            edge.condition.kind !== 'numberRange'
+          ) {
+            errors.push(
+              `All outgoing edges from number question "${node.label}" must use numeric conditions.`,
+            );
+          }
         }
+
+        const intervals = outgoingEdges
+          .map((edge) => this.toNumberInterval(edge))
+          .filter((interval): interval is NumberInterval => interval !== null);
 
         for (let i = 0; i < outgoingEdges.length; i++) {
           for (let j = i + 1; j < outgoingEdges.length; j++) {
@@ -469,6 +584,16 @@ export class FlowsService {
               );
             }
           }
+        }
+
+        if (
+          outgoingEdges.length > 0 &&
+          intervals.length === outgoingEdges.length &&
+          !this.hasFullNumberCoverage(intervals)
+        ) {
+          errors.push(
+            `Number question "${node.label}" has gaps in its conditions. Numeric conditions must cover all possible values.`,
+          );
         }
       }
 

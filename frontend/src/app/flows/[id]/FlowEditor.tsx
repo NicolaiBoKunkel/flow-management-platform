@@ -19,6 +19,7 @@ import { getToken } from '../../lib/auth';
 import type {
   DomainNodeType,
   EdgeCondition,
+  NumberConditionMode,
   NumberOperator,
   QuestionType,
 } from './flow-editor.types';
@@ -76,6 +77,13 @@ type MeResponse = {
 };
 
 function formatNumberConditionLabel(condition: EdgeCondition): string {
+  if (condition.kind === 'numberRange') {
+    const leftBracket = condition.minInclusive ? '[' : '(';
+    const rightBracket = condition.maxInclusive ? ']' : ')';
+
+    return `${leftBracket}${condition.min} - ${condition.max}${rightBracket}`;
+  }
+
   const operatorMap: Record<NumberOperator, string> = {
     lt: '<',
     lte: '<=',
@@ -164,10 +172,7 @@ export default function FlowEditor({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      label:
-        edge.condition?.kind === 'number'
-          ? formatNumberConditionLabel(edge.condition)
-          : edge.label,
+      label: edge.condition ? formatNumberConditionLabel(edge.condition) : edge.label,
       condition: edge.condition,
     }));
   }, [initialGraph, fallbackEdges]);
@@ -188,9 +193,17 @@ export default function FlowEditor({
     useState<QuestionType>('singleChoice');
   const [selectedEdgeSourceQuestionType, setSelectedEdgeSourceQuestionType] =
     useState<QuestionType | null>(null);
+  const [numberConditionMode, setNumberConditionMode] =
+    useState<NumberConditionMode>('single');
   const [edgeConditionOperator, setEdgeConditionOperator] =
     useState<NumberOperator>('eq');
   const [edgeConditionValue, setEdgeConditionValue] = useState('');
+  const [edgeConditionMin, setEdgeConditionMin] = useState('');
+  const [edgeConditionMax, setEdgeConditionMax] = useState('');
+  const [edgeConditionMinInclusive, setEdgeConditionMinInclusive] =
+    useState(true);
+  const [edgeConditionMaxInclusive, setEdgeConditionMaxInclusive] =
+    useState(true);
   const [message, setMessage] = useState('');
   const [editorMessage, setEditorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -237,6 +250,16 @@ export default function FlowEditor({
   }, [nodes]);
 
   const hasStartNode = startNodeCount > 0;
+
+  function resetNumberConditionState() {
+    setNumberConditionMode('single');
+    setEdgeConditionOperator('eq');
+    setEdgeConditionValue('');
+    setEdgeConditionMin('');
+    setEdgeConditionMax('');
+    setEdgeConditionMinInclusive(true);
+    setEdgeConditionMaxInclusive(true);
+  }
 
   function setLocalEditorFeedback(text: string) {
     setEditorMessage(text);
@@ -305,8 +328,7 @@ export default function FlowEditor({
       (node.data?.questionType as QuestionType | undefined) ?? 'singleChoice',
     );
     setSelectedEdgeSourceQuestionType(null);
-    setEdgeConditionOperator('eq');
-    setEdgeConditionValue('');
+    resetNumberConditionState();
   }
 
   function handleEdgeClick(_: React.MouseEvent, edge: Edge) {
@@ -327,12 +349,25 @@ export default function FlowEditor({
     setSelectedEdgeSourceQuestionType(sourceQuestionType);
 
     if (typedEdge.condition?.kind === 'number') {
+      setNumberConditionMode('single');
       setEdgeConditionOperator(typedEdge.condition.operator);
       setEdgeConditionValue(String(typedEdge.condition.value));
+      setEdgeConditionMin('');
+      setEdgeConditionMax('');
+      setEdgeConditionMinInclusive(true);
+      setEdgeConditionMaxInclusive(true);
       setEdgeLabel(formatNumberConditionLabel(typedEdge.condition));
-    } else {
+    } else if (typedEdge.condition?.kind === 'numberRange') {
+      setNumberConditionMode('range');
       setEdgeConditionOperator('eq');
       setEdgeConditionValue('');
+      setEdgeConditionMin(String(typedEdge.condition.min));
+      setEdgeConditionMax(String(typedEdge.condition.max));
+      setEdgeConditionMinInclusive(typedEdge.condition.minInclusive);
+      setEdgeConditionMaxInclusive(typedEdge.condition.maxInclusive);
+      setEdgeLabel(formatNumberConditionLabel(typedEdge.condition));
+    } else {
+      resetNumberConditionState();
       setEdgeLabel(typeof edge.label === 'string' ? edge.label : '');
     }
   }
@@ -418,47 +453,58 @@ export default function FlowEditor({
   function handleUpdateEdgeLabel() {
     if (!canEdit || !selectedEdgeId) return;
 
+    let updatedCondition: EdgeCondition | undefined;
+    let updatedLabel = edgeLabel;
+
+    if (selectedEdgeSourceQuestionType === 'number') {
+      if (numberConditionMode === 'single') {
+        if (edgeConditionValue.trim() === '') {
+          setValidationErrors(['Number condition value is required.']);
+          return;
+        }
+
+        updatedCondition = {
+          kind: 'number',
+          operator: edgeConditionOperator,
+          value: Number(edgeConditionValue),
+        };
+      } else {
+        if (
+          edgeConditionMin.trim() === '' ||
+          edgeConditionMax.trim() === ''
+        ) {
+          setValidationErrors(['Number range min and max are required.']);
+          return;
+        }
+
+        updatedCondition = {
+          kind: 'numberRange',
+          min: Number(edgeConditionMin),
+          max: Number(edgeConditionMax),
+          minInclusive: edgeConditionMinInclusive,
+          maxInclusive: edgeConditionMaxInclusive,
+        };
+      }
+
+      updatedLabel = formatNumberConditionLabel(updatedCondition);
+    }
+
     setEdges((eds) =>
       eds.map((edge) => {
         if (edge.id !== selectedEdgeId) {
           return edge;
         }
 
-        const shouldUseNumberCondition =
-          selectedEdgeSourceQuestionType === 'number';
-
-        let condition: EdgeCondition | undefined = undefined;
-        let label = edgeLabel;
-
-        if (shouldUseNumberCondition && edgeConditionValue.trim() !== '') {
-          condition = {
-            kind: 'number',
-            operator: edgeConditionOperator,
-            value: Number(edgeConditionValue),
-          };
-          label = formatNumberConditionLabel(condition);
-        }
-
         return {
           ...edge,
-          label,
-          condition,
+          label: updatedLabel,
+          condition: updatedCondition,
         } as FlowEditorEdge;
       }),
     );
 
-    if (
-      selectedEdgeSourceQuestionType === 'number' &&
-      edgeConditionValue.trim() !== ''
-    ) {
-      const generatedLabel = formatNumberConditionLabel({
-        kind: 'number',
-        operator: edgeConditionOperator,
-        value: Number(edgeConditionValue),
-      });
-      setEdgeLabel(generatedLabel);
-    }
-
+    setEdgeLabel(updatedLabel);
+    setValidationErrors([]);
     setLocalEditorFeedback(
       'Edge updated in editor. Remember to save the flow.',
     );
@@ -495,8 +541,7 @@ export default function FlowEditor({
     setSelectedEdgeId(null);
     setEdgeLabel('');
     setSelectedEdgeSourceQuestionType(null);
-    setEdgeConditionOperator('eq');
-    setEdgeConditionValue('');
+    resetNumberConditionState();
 
     setLocalEditorFeedback('Edge deleted in editor. Remember to save the flow.');
   }
@@ -556,10 +601,9 @@ export default function FlowEditor({
         })),
         edges: edges.map((edge) => {
           const typedEdge = edge as FlowEditorEdge;
-          const label =
-            typedEdge.condition?.kind === 'number'
-              ? formatNumberConditionLabel(typedEdge.condition)
-              : edge.label;
+          const label = typedEdge.condition
+            ? formatNumberConditionLabel(typedEdge.condition)
+            : edge.label;
 
           return {
             id: edge.id,
@@ -728,10 +772,20 @@ export default function FlowEditor({
           questionType={questionType}
           setQuestionType={setQuestionType}
           selectedEdgeSourceQuestionType={selectedEdgeSourceQuestionType}
+          numberConditionMode={numberConditionMode}
+          setNumberConditionMode={setNumberConditionMode}
           edgeConditionOperator={edgeConditionOperator}
           setEdgeConditionOperator={setEdgeConditionOperator}
           edgeConditionValue={edgeConditionValue}
           setEdgeConditionValue={setEdgeConditionValue}
+          edgeConditionMin={edgeConditionMin}
+          setEdgeConditionMin={setEdgeConditionMin}
+          edgeConditionMax={edgeConditionMax}
+          setEdgeConditionMax={setEdgeConditionMax}
+          edgeConditionMinInclusive={edgeConditionMinInclusive}
+          setEdgeConditionMinInclusive={setEdgeConditionMinInclusive}
+          edgeConditionMaxInclusive={edgeConditionMaxInclusive}
+          setEdgeConditionMaxInclusive={setEdgeConditionMaxInclusive}
           handleUpdateNodeType={handleUpdateNodeType}
           handleUpdateNodeContent={handleUpdateNodeContent}
           handleDeleteNode={handleDeleteNode}
