@@ -3,11 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  FlowEdge,
-  FlowGraph,
-  FlowNode,
-} from '../flows/types/flow-graph.types';
+import { FlowEdge, FlowGraph, FlowNode } from '../flows/types/flow-graph.types';
 import { PrismaService } from '../prisma/prisma.service';
 
 type FlowSessionHistoryEntry = {

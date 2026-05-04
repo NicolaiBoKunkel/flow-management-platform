@@ -4,36 +4,10 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import EditFlowForm from './EditFlowForm';
+import FlowAnalysisPanel from './FlowAnalysisPanel';
 import FlowEditor from './FlowEditor';
 import SharingPanel from './SharingPanel';
-
-type FlowGraph = {
-  nodes: {
-    id: string;
-    type: 'start' | 'question' | 'end' | 'info';
-    label: string;
-    position: {
-      x: number;
-      y: number;
-    };
-    questionType?: 'singleChoice' | 'number' | 'text';
-    introText?: string;
-    questionText?: string;
-    resultText?: string;
-    infoText?: string;
-  }[];
-  edges: {
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-    condition?: {
-      kind: 'number';
-      operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
-      value: number;
-    };
-  }[];
-};
+import type { FlowGraph } from './flow-editor.types';
 
 type FlowAccessEntry = {
   id: string;
@@ -67,6 +41,7 @@ export default function FlowDetailPage({
   const [isForbidden, setIsForbidden] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
   const [flowId, setFlowId] = useState<string | null>(null);
+  const [analysisRefreshKey, setAnalysisRefreshKey] = useState(0);
 
   useEffect(() => {
     async function resolveParamsAndFetch() {
@@ -104,6 +79,10 @@ export default function FlowDetailPage({
 
     void resolveParamsAndFetch();
   }, [params]);
+
+  function handleGraphSaved() {
+    setAnalysisRefreshKey((current) => current + 1);
+  }
 
   if (isLoading) {
     return (
@@ -170,6 +149,11 @@ export default function FlowDetailPage({
       <EditFlowForm flow={flow} />
       <SharingPanel flow={flow} />
 
+      <FlowAnalysisPanel
+        flowId={flow.id}
+        refreshKey={analysisRefreshKey}
+      />
+
       <div className="mt-8">
         <h2 className="mb-4 text-xl font-semibold">Flow Editor</h2>
         <FlowEditor
@@ -177,6 +161,7 @@ export default function FlowDetailPage({
           initialGraph={flow.graph ?? null}
           ownerId={flow.ownerId ?? null}
           accessList={flow.accessList ?? []}
+          onGraphSaved={handleGraphSaved}
         />
       </div>
     </main>
