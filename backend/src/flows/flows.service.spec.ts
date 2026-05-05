@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FlowsService } from './flows.service';
+import { GraphAnalysisService } from '../graph-analysis/graph-analysis.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { FlowsService } from './flows.service';
 
 describe('FlowsService', () => {
   let service: FlowsService;
@@ -16,7 +17,25 @@ describe('FlowsService', () => {
               findMany: jest.fn(),
               findUnique: jest.fn(),
               create: jest.fn(),
+              update: jest.fn(),
+              delete: jest.fn(),
             },
+            flowAccess: {
+              findMany: jest.fn(),
+              findUnique: jest.fn(),
+              upsert: jest.fn(),
+              delete: jest.fn(),
+            },
+            user: {
+              findUnique: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: GraphAnalysisService,
+          useValue: {
+            syncGraphProjection: jest.fn(),
+            deleteGraphProjection: jest.fn(),
           },
         },
       ],

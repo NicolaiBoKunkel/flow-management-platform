@@ -63,6 +63,7 @@ type FlowEditorProps = {
       condition?: EdgeCondition;
     }[];
   } | null;
+  onGraphSaved?: () => void;
 };
 
 type FlowEditorEdge = Edge & {
@@ -100,6 +101,7 @@ export default function FlowEditor({
   ownerId,
   accessList,
   initialGraph,
+  onGraphSaved,
 }: FlowEditorProps) {
   const fallbackNodes: Node[] = useMemo(
     () => [
@@ -641,6 +643,7 @@ export default function FlowEditor({
       setMessage('Flow graph gemt');
       setEditorMessage('');
       setValidationErrors([]);
+      onGraphSaved?.();
     } catch (error) {
       console.error('Error saving flow graph:', error);
       setValidationErrors(['Der opstod en uventet fejl ved gemning.']);

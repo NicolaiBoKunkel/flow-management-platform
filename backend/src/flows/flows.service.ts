@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FlowAccessRole } from '@prisma/client';
+import { GraphAnalysisService } from '../graph-analysis/graph-analysis.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { ShareFlowDto } from './dto/share-flow.dto';
@@ -20,7 +21,10 @@ type NumberInterval = {
 
 @Injectable()
 export class FlowsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly graphAnalysisService: GraphAnalysisService,
+  ) {}
 
   findAll(userId?: string) {
     return this.prisma.flow.findMany({
@@ -317,13 +321,8 @@ export class FlowsService {
   }
 
   private intervalsOverlap(a: NumberInterval, b: NumberInterval): boolean {
-    if (a.max < b.min) {
-      return false;
-    }
-
-    if (b.max < a.min) {
-      return false;
-    }
+    if (a.max < b.min) return false;
+    if (b.max < a.min) return false;
 
     if (a.max === b.min) {
       return a.maxInclusive && b.minInclusive;
@@ -337,19 +336,11 @@ export class FlowsService {
   }
 
   private hasFullNumberCoverage(intervals: NumberInterval[]): boolean {
-    if (intervals.length === 0) {
-      return false;
-    }
+    if (intervals.length === 0) return false;
 
     const sortedIntervals = [...intervals].sort((a, b) => {
-      if (a.min !== b.min) {
-        return a.min - b.min;
-      }
-
-      if (a.minInclusive === b.minInclusive) {
-        return 0;
-      }
-
+      if (a.min !== b.min) return a.min - b.min;
+      if (a.minInclusive === b.minInclusive) return 0;
       return a.minInclusive ? -1 : 1;
     });
 
@@ -365,9 +356,7 @@ export class FlowsService {
     for (let i = 1; i < sortedIntervals.length; i++) {
       const nextInterval = sortedIntervals[i];
 
-      if (nextInterval.min > currentCoverageEnd) {
-        return false;
-      }
+      if (nextInterval.min > currentCoverageEnd) return false;
 
       if (
         nextInterval.min === currentCoverageEnd &&
@@ -574,9 +563,7 @@ export class FlowsService {
             const firstInterval = this.toNumberInterval(firstEdge);
             const secondInterval = this.toNumberInterval(secondEdge);
 
-            if (!firstInterval || !secondInterval) {
-              continue;
-            }
+            if (!firstInterval || !secondInterval) continue;
 
             if (this.intervalsOverlap(firstInterval, secondInterval)) {
               errors.push(
@@ -673,10 +660,10 @@ export class FlowsService {
       await this.findOwnedFlowOrThrow(id, userId);
     }
 
-    if (updateFlowDto.graph) {
-      const validationErrors = this.validateGraph(
-        updateFlowDto.graph as FlowGraph,
-      );
+    const graph = updateFlowDto.graph as FlowGraph | undefined;
+
+    if (graph) {
+      const validationErrors = this.validateGraph(graph);
 
       if (validationErrors.length > 0) {
         throw new BadRequestException({
@@ -686,17 +673,41 @@ export class FlowsService {
       }
     }
 
-    return this.prisma.flow.update({
+    const updatedFlow = await this.prisma.flow.update({
       where: { id },
       data: updateFlowDto,
     });
+
+    if (graph) {
+      try {
+        await this.graphAnalysisService.syncGraphProjection(id, graph);
+      } catch (error) {
+        console.warn(
+          `Flow ${id} was saved to PostgreSQL, but Neo4j projection sync failed.`,
+          error,
+        );
+      }
+    }
+
+    return updatedFlow;
   }
 
   async remove(id: string, userId: string) {
     await this.findOwnedFlowOrThrow(id, userId);
 
-    return this.prisma.flow.delete({
+    const deletedFlow = await this.prisma.flow.delete({
       where: { id },
     });
+
+    try {
+      await this.graphAnalysisService.deleteGraphProjection(id);
+    } catch (error) {
+      console.warn(
+        `Flow ${id} was deleted from PostgreSQL, but Neo4j projection cleanup failed.`,
+        error,
+      );
+    }
+
+    return deletedFlow;
   }
 }
