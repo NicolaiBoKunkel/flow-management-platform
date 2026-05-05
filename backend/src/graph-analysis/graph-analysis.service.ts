@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { FlowAccessRole } from '@prisma/client';
@@ -9,6 +10,44 @@ import { Neo4jService } from '../neo4j/neo4j.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type FlowAccessMode = 'view' | 'edit';
+
+type Neo4jRecordLike = {
+  get: (key: string) => unknown;
+};
+
+type Neo4jIntegerLike = {
+  toNumber: () => number;
+};
+
+type Neo4jQueryResultLike = {
+  records: unknown[];
+};
+
+type AnalysisNode = {
+  nodeId: string;
+  label: string;
+  type: string;
+};
+
+type HighBranchingNode = AnalysisNode & {
+  outgoingCount: number;
+};
+
+type GraphNodeProperties = {
+  flowId: string;
+  nodeId: string;
+  type: FlowNode['type'];
+  label: string;
+  questionType: FlowNode['questionType'] | null;
+  introText: string | null;
+  questionText: string | null;
+  resultText: string | null;
+  infoText: string | null;
+  positionX: number;
+  positionY: number;
+};
+
+type GraphEdgeProperties = Record<string, string | number | boolean>;
 
 @Injectable()
 export class GraphAnalysisService {
@@ -56,7 +95,106 @@ export class GraphAnalysisService {
     return flow;
   }
 
-  private buildNodeProperties(flowId: string, node: FlowNode) {
+  private isNeo4jRecordLike(value: unknown): value is Neo4jRecordLike {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'get' in value &&
+      typeof (value as { get?: unknown }).get === 'function'
+    );
+  }
+
+  private isNeo4jIntegerLike(value: unknown): value is Neo4jIntegerLike {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'toNumber' in value &&
+      typeof (value as { toNumber?: unknown }).toNumber === 'function'
+    );
+  }
+
+  private getFirstRecord(result: Neo4jQueryResultLike): Neo4jRecordLike {
+    const record = result.records[0];
+
+    if (!this.isNeo4jRecordLike(record)) {
+      throw new InternalServerErrorException(
+        'Neo4j query did not return a valid record.',
+      );
+    }
+
+    return record;
+  }
+
+  private getNumberFromResult(
+    result: Neo4jQueryResultLike,
+    key: string,
+  ): number {
+    return this.getNumberFromRecord(this.getFirstRecord(result), key);
+  }
+
+  private getBooleanFromResult(
+    result: Neo4jQueryResultLike,
+    key: string,
+  ): boolean {
+    const value = this.getFirstRecord(result).get(key);
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    throw new InternalServerErrorException(
+      `Neo4j value "${key}" was expected to be a boolean.`,
+    );
+  }
+
+  private getNumberFromRecord(record: Neo4jRecordLike, key: string): number {
+    const value = record.get(key);
+
+    if (this.isNeo4jIntegerLike(value)) {
+      return value.toNumber();
+    }
+
+    if (typeof value === 'number') {
+      return value;
+    }
+
+    throw new InternalServerErrorException(
+      `Neo4j value "${key}" was expected to be numeric.`,
+    );
+  }
+
+  private getStringFromUnknownRecord(record: unknown, key: string): string {
+    if (!this.isNeo4jRecordLike(record)) {
+      throw new InternalServerErrorException(
+        'Neo4j query did not return a valid record.',
+      );
+    }
+
+    const value = record.get(key);
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    throw new InternalServerErrorException(
+      `Neo4j value "${key}" was expected to be a string.`,
+    );
+  }
+
+  private getNumberFromUnknownRecord(record: unknown, key: string): number {
+    if (!this.isNeo4jRecordLike(record)) {
+      throw new InternalServerErrorException(
+        'Neo4j query did not return a valid record.',
+      );
+    }
+
+    return this.getNumberFromRecord(record, key);
+  }
+
+  private buildNodeProperties(
+    flowId: string,
+    node: FlowNode,
+  ): GraphNodeProperties {
     return {
       flowId,
       nodeId: node.id,
@@ -72,32 +210,49 @@ export class GraphAnalysisService {
     };
   }
 
-  private buildEdgeProperties(edge: FlowEdge) {
-    const base = {
+  private buildEdgeProperties(edge: FlowEdge): GraphEdgeProperties {
+    const properties: GraphEdgeProperties = {
       edgeId: edge.id,
-      label: edge.label ?? null,
-      conditionKind: edge.condition?.kind ?? null,
-      conditionOperator:
-        edge.condition?.kind === 'number' ? edge.condition.operator : null,
-      conditionValue:
-        edge.condition?.kind === 'number' ? edge.condition.value : null,
-      conditionMin:
-        edge.condition?.kind === 'numberRange' ? edge.condition.min : null,
-      conditionMax:
-        edge.condition?.kind === 'numberRange' ? edge.condition.max : null,
-      conditionMinInclusive:
-        edge.condition?.kind === 'numberRange'
-          ? edge.condition.minInclusive
-          : null,
-      conditionMaxInclusive:
-        edge.condition?.kind === 'numberRange'
-          ? edge.condition.maxInclusive
-          : null,
     };
 
-    return Object.fromEntries(
-      Object.entries(base).filter(([, value]) => value !== null),
-    );
+    if (edge.label) {
+      properties.label = edge.label;
+    }
+
+    if (edge.condition) {
+      properties.conditionKind = edge.condition.kind;
+
+      if (edge.condition.kind === 'number') {
+        properties.conditionOperator = edge.condition.operator;
+        properties.conditionValue = edge.condition.value;
+      }
+
+      if (edge.condition.kind === 'numberRange') {
+        properties.conditionMin = edge.condition.min;
+        properties.conditionMax = edge.condition.max;
+        properties.conditionMinInclusive = edge.condition.minInclusive;
+        properties.conditionMaxInclusive = edge.condition.maxInclusive;
+      }
+    }
+
+    return properties;
+  }
+
+  private mapAnalysisNode(record: unknown): AnalysisNode {
+    return {
+      nodeId: this.getStringFromUnknownRecord(record, 'nodeId'),
+      label: this.getStringFromUnknownRecord(record, 'label'),
+      type: this.getStringFromUnknownRecord(record, 'type'),
+    };
+  }
+
+  private mapHighBranchingNode(record: unknown): HighBranchingNode {
+    return {
+      nodeId: this.getStringFromUnknownRecord(record, 'nodeId'),
+      label: this.getStringFromUnknownRecord(record, 'label'),
+      type: this.getStringFromUnknownRecord(record, 'type'),
+      outgoingCount: this.getNumberFromUnknownRecord(record, 'outgoingCount'),
+    };
   }
 
   async syncGraphProjection(flowId: string, graph: FlowGraph) {
@@ -201,14 +356,14 @@ export class GraphAnalysisService {
         { flowId },
       );
 
-      const nodeCount = nodeCountResult.records[0].get('count').toNumber();
+      const nodeCount = this.getNumberFromResult(nodeCountResult, 'count');
 
       if (nodeCount === 0) {
         return {
           flowId,
           synced: false,
           message:
-            'No Neo4j projection found for this flow. Run POST /flows/:flowId/analysis/sync first.',
+            'No Neo4j projection found for this flow. Save the flow graph or run sync projection first.',
         };
       }
 
@@ -216,6 +371,30 @@ export class GraphAnalysisService {
         `
         MATCH (:FlowNode { flowId: $flowId })-[r:FLOW_EDGE]->(:FlowNode { flowId: $flowId })
         RETURN count(r) AS count
+        `,
+        { flowId },
+      );
+
+      const startNodeCountResult = await session.run(
+        `
+        MATCH (n:FlowNode { flowId: $flowId, type: 'start' })
+        RETURN count(n) AS count
+        `,
+        { flowId },
+      );
+
+      const endNodeCountResult = await session.run(
+        `
+        MATCH (n:FlowNode { flowId: $flowId, type: 'end' })
+        RETURN count(n) AS count
+        `,
+        { flowId },
+      );
+
+      const cycleResult = await session.run(
+        `
+        MATCH path = (n:FlowNode { flowId: $flowId })-[:FLOW_EDGE*1..50]->(n)
+        RETURN count(path) > 0 AS hasCycles
         `,
         { flowId },
       );
@@ -266,35 +445,27 @@ export class GraphAnalysisService {
         { flowId },
       );
 
-      const edgeCount = edgeCountResult.records[0].get('count').toNumber();
-
-      const pathsRecord = pathsResult.records[0];
-      const pathsToEndCount = pathsRecord.get('pathCount').toNumber();
-      const maxPathLength = pathsRecord.get('maxPathLength').toNumber();
+      const pathsRecord = this.getFirstRecord(pathsResult);
 
       return {
         flowId,
         synced: true,
         nodeCount,
-        edgeCount,
-        pathsToEndCount,
-        maxPathLength,
-        deadEndNodes: deadEndResult.records.map((record) => ({
-          nodeId: record.get('nodeId'),
-          label: record.get('label'),
-          type: record.get('type'),
-        })),
-        unreachableNodes: unreachableResult.records.map((record) => ({
-          nodeId: record.get('nodeId'),
-          label: record.get('label'),
-          type: record.get('type'),
-        })),
-        highBranchingNodes: highBranchingResult.records.map((record) => ({
-          nodeId: record.get('nodeId'),
-          label: record.get('label'),
-          type: record.get('type'),
-          outgoingCount: record.get('outgoingCount').toNumber(),
-        })),
+        edgeCount: this.getNumberFromResult(edgeCountResult, 'count'),
+        startNodeCount: this.getNumberFromResult(startNodeCountResult, 'count'),
+        endNodeCount: this.getNumberFromResult(endNodeCountResult, 'count'),
+        hasCycles: this.getBooleanFromResult(cycleResult, 'hasCycles'),
+        pathsToEndCount: this.getNumberFromRecord(pathsRecord, 'pathCount'),
+        maxPathLength: this.getNumberFromRecord(pathsRecord, 'maxPathLength'),
+        deadEndNodes: deadEndResult.records.map((record) =>
+          this.mapAnalysisNode(record),
+        ),
+        unreachableNodes: unreachableResult.records.map((record) =>
+          this.mapAnalysisNode(record),
+        ),
+        highBranchingNodes: highBranchingResult.records.map((record) =>
+          this.mapHighBranchingNode(record),
+        ),
       };
     } finally {
       await session.close();

@@ -21,6 +21,7 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     await this.driver.verifyConnectivity();
+    await this.ensureSchema();
   }
 
   async onModuleDestroy() {
@@ -29,5 +30,33 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
 
   getSession(): Session {
     return this.driver.session();
+  }
+
+  private async ensureSchema() {
+    const session = this.getSession();
+
+    try {
+      await session.executeWrite(async (tx) => {
+        await tx.run(`
+          CREATE CONSTRAINT flow_node_unique IF NOT EXISTS
+          FOR (n:FlowNode)
+          REQUIRE (n.flowId, n.nodeId) IS UNIQUE
+        `);
+
+        await tx.run(`
+          CREATE INDEX flow_node_flow_id IF NOT EXISTS
+          FOR (n:FlowNode)
+          ON (n.flowId)
+        `);
+
+        await tx.run(`
+          CREATE INDEX flow_node_type IF NOT EXISTS
+          FOR (n:FlowNode)
+          ON (n.type)
+        `);
+      });
+    } finally {
+      await session.close();
+    }
   }
 }

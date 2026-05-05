@@ -24,6 +24,9 @@ type FlowAnalysis =
       synced: true;
       nodeCount: number;
       edgeCount: number;
+      startNodeCount: number;
+      endNodeCount: number;
+      hasCycles: boolean;
       pathsToEndCount: number;
       maxPathLength: number;
       deadEndNodes: AnalysisNode[];
@@ -186,8 +189,14 @@ export default function FlowAnalysisPanel({
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <MetricCard label="Nodes" value={analysis.nodeCount} />
             <MetricCard label="Edges" value={analysis.edgeCount} />
+            <MetricCard label="Start nodes" value={analysis.startNodeCount} />
+            <MetricCard label="End nodes" value={analysis.endNodeCount} />
             <MetricCard label="Paths to end" value={analysis.pathsToEndCount} />
             <MetricCard label="Max path length" value={analysis.maxPathLength} />
+            <MetricCard
+              label="Cycles"
+              value={analysis.hasCycles ? 'Yes' : 'No'}
+            />
           </div>
 
           <NodeList
@@ -209,7 +218,13 @@ export default function FlowAnalysisPanel({
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function MetricCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
       <p className="text-sm text-neutral-400">{label}</p>
