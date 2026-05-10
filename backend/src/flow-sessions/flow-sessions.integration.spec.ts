@@ -330,6 +330,24 @@ describe('Flow sessions integration', () => {
     expect(completedSession.currentNode.id).toBe('yes-end');
   });
 
+  it('RUN-005 chooses the correct edge for a number question', async () => {
+    const flow = await createFlow(numericBranchingGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const completedSession = await advanceSession(
+      flow.id,
+      questionSession.sessionId,
+      {
+        numericValue: 17,
+      },
+    );
+
+    expect(completedSession.status).toBe('completed');
+    expect(completedSession.currentNode.id).toBe('young-end');
+  });
+
   it.each([
     {
       testCaseId: 'NUM-009',

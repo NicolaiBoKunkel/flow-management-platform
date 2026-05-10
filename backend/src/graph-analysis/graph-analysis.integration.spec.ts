@@ -311,6 +311,33 @@ describe('Graph analysis integration', () => {
     });
   }
 
+  function mockSuccessfulAnalysisResult(overrides?: {
+    hasCycles?: boolean;
+    deadEndNodes?: Neo4jRecordMock[];
+    highBranchingNodes?: Neo4jRecordMock[];
+    unreachableNodes?: Neo4jRecordMock[];
+  }) {
+    sessionRunMock
+      .mockResolvedValueOnce(result([record({ count: neoInt(6) })]))
+      .mockResolvedValueOnce(result([record({ count: neoInt(5) })]))
+      .mockResolvedValueOnce(result([record({ count: neoInt(1) })]))
+      .mockResolvedValueOnce(result([record({ count: neoInt(2) })]))
+      .mockResolvedValueOnce(
+        result([record({ hasCycles: overrides?.hasCycles ?? false })]),
+      )
+      .mockResolvedValueOnce(result(overrides?.deadEndNodes ?? []))
+      .mockResolvedValueOnce(result(overrides?.highBranchingNodes ?? []))
+      .mockResolvedValueOnce(result(overrides?.unreachableNodes ?? []))
+      .mockResolvedValueOnce(
+        result([
+          record({
+            pathCount: neoInt(2),
+            maxPathLength: neoInt(5),
+          }),
+        ]),
+      );
+  }
+
   it('NEO-001 syncs a flow graph projection to Neo4j', async () => {
     const owner = await createUser('owner@example.com');
     const flow = await createFlow(owner.id, 'private');
@@ -416,52 +443,114 @@ describe('Graph analysis integration', () => {
     expect(sessionRunMock).toHaveBeenCalledTimes(1);
   });
 
-  it('NEO-004/005/006/007 maps high branching, unreachable, dead-end nodes and cycles', async () => {
+  it('NEO-004 identifies high branching nodes', async () => {
     const owner = await createUser('owner@example.com');
     const flow = await createFlow(owner.id, 'public');
 
-    sessionRunMock
-      .mockResolvedValueOnce(result([record({ count: neoInt(6) })]))
-      .mockResolvedValueOnce(result([record({ count: neoInt(5) })]))
-      .mockResolvedValueOnce(result([record({ count: neoInt(1) })]))
-      .mockResolvedValueOnce(result([record({ count: neoInt(2) })]))
-      .mockResolvedValueOnce(result([record({ hasCycles: true })]))
-      .mockResolvedValueOnce(
-        result([
-          record({
-            nodeId: 'dead-info',
-            label: 'Dead info',
-            type: 'info',
-          }),
-        ]),
-      )
-      .mockResolvedValueOnce(
-        result([
-          record({
-            nodeId: 'branch-question',
-            label: 'Branch question',
-            type: 'question',
-            outgoingCount: neoInt(3),
-          }),
-        ]),
-      )
-      .mockResolvedValueOnce(
-        result([
-          record({
-            nodeId: 'unreachable-info',
-            label: 'Unreachable info',
-            type: 'info',
-          }),
-        ]),
-      )
-      .mockResolvedValueOnce(
-        result([
-          record({
-            pathCount: neoInt(2),
-            maxPathLength: neoInt(5),
-          }),
-        ]),
-      );
+    mockSuccessfulAnalysisResult({
+      highBranchingNodes: [
+        record({
+          nodeId: 'branch-question',
+          label: 'Branch question',
+          type: 'question',
+          outgoingCount: neoInt(3),
+        }),
+      ],
+    });
+
+    const response = await request(httpServer)
+      .get(`/flows/${flow.id}/analysis`)
+      .expect(200);
+
+    const responseBody = response.body as AnalysisResponseBody;
+
+    expect(responseBody.synced).toBe(true);
+
+    if (responseBody.synced) {
+      expect(responseBody.highBranchingNodes).toEqual([
+        {
+          nodeId: 'branch-question',
+          label: 'Branch question',
+          type: 'question',
+          outgoingCount: 3,
+        },
+      ]);
+    }
+  });
+
+  it('NEO-005 identifies unreachable nodes', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(owner.id, 'public');
+
+    mockSuccessfulAnalysisResult({
+      unreachableNodes: [
+        record({
+          nodeId: 'unreachable-info',
+          label: 'Unreachable info',
+          type: 'info',
+        }),
+      ],
+    });
+
+    const response = await request(httpServer)
+      .get(`/flows/${flow.id}/analysis`)
+      .expect(200);
+
+    const responseBody = response.body as AnalysisResponseBody;
+
+    expect(responseBody.synced).toBe(true);
+
+    if (responseBody.synced) {
+      expect(responseBody.unreachableNodes).toEqual([
+        {
+          nodeId: 'unreachable-info',
+          label: 'Unreachable info',
+          type: 'info',
+        },
+      ]);
+    }
+  });
+
+  it('NEO-006 identifies dead-end nodes', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(owner.id, 'public');
+
+    mockSuccessfulAnalysisResult({
+      deadEndNodes: [
+        record({
+          nodeId: 'dead-info',
+          label: 'Dead info',
+          type: 'info',
+        }),
+      ],
+    });
+
+    const response = await request(httpServer)
+      .get(`/flows/${flow.id}/analysis`)
+      .expect(200);
+
+    const responseBody = response.body as AnalysisResponseBody;
+
+    expect(responseBody.synced).toBe(true);
+
+    if (responseBody.synced) {
+      expect(responseBody.deadEndNodes).toEqual([
+        {
+          nodeId: 'dead-info',
+          label: 'Dead info',
+          type: 'info',
+        },
+      ]);
+    }
+  });
+
+  it('NEO-007 detects cycles', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(owner.id, 'public');
+
+    mockSuccessfulAnalysisResult({
+      hasCycles: true,
+    });
 
     const response = await request(httpServer)
       .get(`/flows/${flow.id}/analysis`)
@@ -473,28 +562,6 @@ describe('Graph analysis integration', () => {
 
     if (responseBody.synced) {
       expect(responseBody.hasCycles).toBe(true);
-      expect(responseBody.deadEndNodes).toEqual([
-        {
-          nodeId: 'dead-info',
-          label: 'Dead info',
-          type: 'info',
-        },
-      ]);
-      expect(responseBody.unreachableNodes).toEqual([
-        {
-          nodeId: 'unreachable-info',
-          label: 'Unreachable info',
-          type: 'info',
-        },
-      ]);
-      expect(responseBody.highBranchingNodes).toEqual([
-        {
-          nodeId: 'branch-question',
-          label: 'Branch question',
-          type: 'question',
-          outgoingCount: 3,
-        },
-      ]);
     }
   });
 
