@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, feature/api-test-setup]
+    branches: [master]
   pull_request:
-    branches: [master, feature/api-test-setup]
+    branches: [master]
 
 jobs:
   backend:
