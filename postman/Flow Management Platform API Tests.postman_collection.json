@@ -1,0 +1,513 @@
+{
+  "info": {
+    "_postman_id": "b3f42f75-8a31-49b9-a8b3-db5a4e0094d9",
+    "name": "Flow Management Platform API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "30647364"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "AUTH-001 Register Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"AUTH-001 owner register returns 201 or already exists\", function () {\r",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);\r",
+                  "});\r",
+                  "\r",
+                  "if (pm.response.code === 201) {\r",
+                  "  const json = pm.response.json();\r",
+                  "\r",
+                  "  pm.test(\"Response contains owner token\", function () {\r",
+                  "    pm.expect(json.accessToken).to.be.a(\"string\");\r",
+                  "  });\r",
+                  "\r",
+                  "  pm.environment.set(\"accessToken\", json.accessToken);\r",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"{{ownerEmail}}\",\r\n  \"password\": \"{{ownerPassword}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-003 Login Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"AUTH-003 owner login succeeds\", function () {\r",
+                  "  pm.response.to.have.status(201);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response contains owner accessToken\", function () {\r",
+                  "  pm.expect(json.accessToken).to.be.a(\"string\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.environment.set(\"accessToken\", json.accessToken);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"{{ownerEmail}}\",\r\n  \"password\": \"{{ownerPassword}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-001 Register Viewer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Viewer register returns 201 or already exists\", function () {\r",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);\r",
+                  "});\r",
+                  "\r",
+                  "if (pm.response.code === 201) {\r",
+                  "  const json = pm.response.json();\r",
+                  "\r",
+                  "  pm.test(\"Response contains viewer token\", function () {\r",
+                  "    pm.expect(json.accessToken).to.be.a(\"string\");\r",
+                  "  });\r",
+                  "\r",
+                  "  pm.environment.set(\"viewerToken\", json.accessToken);\r",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"{{viewerEmail}}\",\r\n  \"password\": \"{{viewerPassword}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-003 Login Viewer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Viewer login succeeds\", function () {\r",
+                  "  pm.response.to.have.status(201);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response contains viewer accessToken\", function () {\r",
+                  "  pm.expect(json.accessToken).to.be.a(\"string\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.environment.set(\"viewerToken\", json.accessToken);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"{{viewerEmail}}\",\r\n  \"password\": \"{{viewerPassword}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Flows",
+      "item": [
+        {
+          "name": "API-005 Create Flow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Flow creation succeeds\", function () {\r",
+                  "  pm.response.to.have.status(201);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response contains flow id\", function () {\r",
+                  "  pm.expect(json.id).to.be.a(\"string\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.environment.set(\"flowId\", json.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"title\": \"Postman test flow\",\r\n  \"description\": \"Flow created from Postman collection\",\r\n  \"visibility\": \"private\",\r\n  \"status\": \"draft\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/flows",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "flows"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API-005 Save Valid Graph",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"API-005 valid flow save returns 200\", function () {\r",
+                  "  pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response contains graph\", function () {\r",
+                  "  pm.expect(json.graph).to.be.an(\"object\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Response contains nodes\", function () {\r",
+                  "  pm.expect(json.graph.nodes.length).to.eql(3);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Response contains edges\", function () {\r",
+                  "  pm.expect(json.graph.edges.length).to.eql(2);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"graph\": {\r\n    \"nodes\": [\r\n      {\r\n        \"id\": \"start-node\",\r\n        \"type\": \"start\",\r\n        \"label\": \"Start\",\r\n        \"position\": {\r\n          \"x\": 0,\r\n          \"y\": 0\r\n        }\r\n      },\r\n      {\r\n        \"id\": \"question-node\",\r\n        \"type\": \"question\",\r\n        \"label\": \"Question\",\r\n        \"questionType\": \"singleChoice\",\r\n        \"position\": {\r\n          \"x\": 200,\r\n          \"y\": 100\r\n        }\r\n      },\r\n      {\r\n        \"id\": \"end-node\",\r\n        \"type\": \"end\",\r\n        \"label\": \"End\",\r\n        \"position\": {\r\n          \"x\": 400,\r\n          \"y\": 200\r\n        }\r\n      }\r\n    ],\r\n    \"edges\": [\r\n      {\r\n        \"id\": \"edge-start-question\",\r\n        \"source\": \"start-node\",\r\n        \"target\": \"question-node\"\r\n      },\r\n      {\r\n        \"id\": \"edge-question-end\",\r\n        \"source\": \"question-node\",\r\n        \"target\": \"end-node\"\r\n      }\r\n    ]\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/flows/{{flowId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "flows",
+                "{{flowId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API-001 Reject Invalid Graph",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"API-001 invalid graph save returns 400\", function () {\r",
+                  "  pm.response.to.have.status(400);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response has validation failure message\", function () {\r",
+                  "  pm.expect(json.message).to.eql(\"Flow graph validation failed\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Response has errors array\", function () {\r",
+                  "  pm.expect(json.errors).to.be.an(\"array\");\r",
+                  "  pm.expect(json.errors.length).to.be.greaterThan(0);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Errors mention missing nodes\", function () {\r",
+                  "  pm.expect(json.errors).to.include(\"Flow must contain at least one node.\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"graph\": {\r\n    \"nodes\": [],\r\n    \"edges\": []\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/flows/{{flowId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "flows",
+                "{{flowId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API-002 Reject Missing Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"API-002 protected route rejects missing token\", function () {\r",
+                  "  pm.response.to.have.status(401);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response contains auth error message\", function () {\r",
+                  "  pm.expect(json.message).to.exist;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"title\": \"Unauthorized update attempt\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/flows/{{flowId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "flows",
+                "{{flowId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API-003 Reject Unknown Flow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"API-003 unknown flow returns 404\", function () {\r",
+                  "  pm.response.to.have.status(404);\r",
+                  "});\r",
+                  "\r",
+                  "const json = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Response contains not found message\", function () {\r",
+                  "  pm.expect(json.message).to.exist;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/flows/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "flows",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
