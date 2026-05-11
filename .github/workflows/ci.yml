@@ -73,7 +73,7 @@ jobs:
       - run: npm run test:cov
 
       - name: Start backend for Postman API tests
-        run: npm run start:prod &
+        run: npm run start &
 
       - name: Wait for backend
         run: npx wait-on http://localhost:3001
