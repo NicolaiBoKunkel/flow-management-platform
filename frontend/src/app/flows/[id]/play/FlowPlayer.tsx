@@ -207,7 +207,10 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
   if (!graph) {
     return (
-      <div className="rounded-xl border border-red-800 bg-red-950 p-6 text-red-300">
+      <div
+        data-cy="flow-player-no-graph"
+        className="rounded-xl border border-red-800 bg-red-950 p-6 text-red-300"
+      >
         This flow does not contain a graph.
       </div>
     );
@@ -215,7 +218,10 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
   if (!hasStarted) {
     return (
-      <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-sm">
+      <div
+        data-cy="flow-player-start-screen"
+        className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-sm"
+      >
         <div className="space-y-6">
           <div>
             <p className="text-sm uppercase tracking-wide text-neutral-400">
@@ -231,12 +237,16 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
           </p>
 
           {error && (
-            <div className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-300">
+            <div
+              data-cy="flow-player-error"
+              className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-300"
+            >
               {error}
             </div>
           )}
 
           <button
+            data-cy="start-flow-button"
             onClick={startSession}
             disabled={isLoading}
             className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
@@ -250,25 +260,35 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
   if (!currentNode) {
     return (
-      <div className="rounded-xl border border-red-800 bg-red-950 p-6 text-red-300">
+      <div
+        data-cy="flow-player-no-current-node"
+        className="rounded-xl border border-red-800 bg-red-950 p-6 text-red-300"
+      >
         No current node available.
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-sm">
+    <div
+      data-cy="flow-player-session"
+      className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-sm"
+    >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-wide text-neutral-400">
             Session status
           </p>
-          <p className="mt-1 text-base font-medium text-white">
+          <p
+            data-cy="session-status"
+            className="mt-1 text-base font-medium text-white"
+          >
             {sessionStatus ?? 'unknown'}
           </p>
         </div>
 
         <button
+          data-cy="back-button"
           onClick={goBack}
           disabled={!canGoBack || isGoingBack || isAdvancing}
           className="rounded border border-neutral-700 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -278,7 +298,10 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-300">
+        <div
+          data-cy="flow-player-error"
+          className="mb-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-300"
+        >
           {error}
         </div>
       )}
@@ -287,18 +310,25 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         <p className="text-sm uppercase tracking-wide text-neutral-400">
           Node type
         </p>
-        <h2 className="mt-1 text-2xl font-bold capitalize">
+        <h2
+          data-cy="current-node-type"
+          className="mt-1 text-2xl font-bold capitalize"
+        >
           {currentNode.type}
         </h2>
       </div>
 
       {currentNode.type === 'start' && (
-        <div className="space-y-6">
-          <p className="text-lg leading-7 text-neutral-100">
+        <div data-cy="start-node-view" className="space-y-6">
+          <p
+            data-cy="start-node-text"
+            className="text-lg leading-7 text-neutral-100"
+          >
             {currentNode.introText || 'Welcome to this flow.'}
           </p>
 
           <button
+            data-cy="continue-flow-button"
             onClick={() => advance()}
             disabled={isAdvancing || isGoingBack}
             className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
@@ -309,12 +339,16 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       )}
 
       {currentNode.type === 'info' && (
-        <div className="space-y-6">
-          <p className="text-lg leading-7 text-neutral-100">
+        <div data-cy="info-node-view" className="space-y-6">
+          <p
+            data-cy="info-node-text"
+            className="text-lg leading-7 text-neutral-100"
+          >
             {currentNode.infoText || 'Information'}
           </p>
 
           <button
+            data-cy="continue-flow-button"
             onClick={() => advance()}
             disabled={isAdvancing || isGoingBack}
             className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
@@ -326,13 +360,17 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
       {currentNode.type === 'question' &&
         currentNode.questionType === 'number' && (
-          <div className="space-y-6">
-            <p className="text-lg leading-7 text-neutral-100">
+          <div data-cy="number-question-view" className="space-y-6">
+            <p
+              data-cy="question-text"
+              className="text-lg leading-7 text-neutral-100"
+            >
               {currentNode.questionText || currentNode.label}
             </p>
 
             <div className="space-y-4">
               <input
+                data-cy="numeric-answer-input"
                 type="number"
                 value={numericValue}
                 onChange={(e) => setNumericValue(e.target.value)}
@@ -342,6 +380,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
               />
 
               <button
+                data-cy="submit-numeric-answer"
                 onClick={submitNumericAnswer}
                 disabled={isAdvancing || isGoingBack}
                 className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
@@ -354,13 +393,17 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
       {currentNode.type === 'question' &&
         currentNode.questionType === 'text' && (
-          <div className="space-y-6">
-            <p className="text-lg leading-7 text-neutral-100">
+          <div data-cy="text-question-view" className="space-y-6">
+            <p
+              data-cy="question-text"
+              className="text-lg leading-7 text-neutral-100"
+            >
               {currentNode.questionText || currentNode.label}
             </p>
 
             <div className="space-y-4">
               <textarea
+                data-cy="text-answer-input"
                 value={textValue}
                 onChange={(e) => setTextValue(e.target.value)}
                 disabled={isAdvancing || isGoingBack}
@@ -369,6 +412,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
               />
 
               <button
+                data-cy="submit-text-answer"
                 onClick={submitTextAnswer}
                 disabled={isAdvancing || isGoingBack}
                 className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
@@ -382,14 +426,18 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       {currentNode.type === 'question' &&
         currentNode.questionType !== 'number' &&
         currentNode.questionType !== 'text' && (
-          <div className="space-y-6">
-            <p className="text-lg leading-7 text-neutral-100">
+          <div data-cy="single-choice-question-view" className="space-y-6">
+            <p
+              data-cy="question-text"
+              className="text-lg leading-7 text-neutral-100"
+            >
               {currentNode.questionText || currentNode.label}
             </p>
 
             <div className="flex flex-col gap-3">
               {outgoingEdges.map((edge) => (
                 <button
+                  data-cy="choice-answer-button"
                   key={edge.id}
                   onClick={() => advance(edge.id)}
                   disabled={isAdvancing || isGoingBack}
@@ -403,12 +451,18 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         )}
 
       {currentNode.type === 'end' && (
-        <div className="space-y-6">
-          <p className="text-lg leading-7 text-neutral-100">
+        <div data-cy="end-node-view" className="space-y-6">
+          <p
+            data-cy="flow-result-text"
+            className="text-lg leading-7 text-neutral-100"
+          >
             {currentNode.resultText || 'Flow completed.'}
           </p>
 
-          <div className="rounded-lg border border-green-800 bg-green-950 p-4 text-green-300">
+          <div
+            data-cy="flow-completed-message"
+            className="rounded-lg border border-green-800 bg-green-950 p-4 text-green-300"
+          >
             This flow has been completed.
           </div>
         </div>

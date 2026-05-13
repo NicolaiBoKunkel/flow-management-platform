@@ -54,6 +54,7 @@ export default function Home() {
       .catch(() => {});
 
     const token = getToken();
+
     if (token) {
       apiFetch('/auth/me')
         .then((res) => {
@@ -61,10 +62,13 @@ export default function Home() {
             setCurrentUser(null);
             return null;
           }
+
           return res.json();
         })
         .then((data) => {
-          if (data) setCurrentUser(data as MeResponse);
+          if (data) {
+            setCurrentUser(data as MeResponse);
+          }
         })
         .catch(() => setCurrentUser(null));
     }
@@ -86,18 +90,29 @@ export default function Home() {
     return flows.filter(
       (flow) =>
         flow.ownerId !== currentUser.id &&
-        flow.accessList?.some((entry) => entry.user.id === currentUser.id),
+        flow.accessList?.some(
+          (entry) => entry.user.id === currentUser.id,
+        ),
     );
   }, [flows, currentUser]);
 
   const publicFlows = useMemo(() => {
     return flows.filter((flow) => {
-      const isOwner = currentUser ? flow.ownerId === currentUser.id : false;
-      const isSharedWithMe = currentUser
-        ? flow.accessList?.some((entry) => entry.user.id === currentUser.id)
+      const isOwner = currentUser
+        ? flow.ownerId === currentUser.id
         : false;
 
-      return flow.visibility === 'public' && !isOwner && !isSharedWithMe;
+      const isSharedWithMe = currentUser
+        ? flow.accessList?.some(
+            (entry) => entry.user.id === currentUser.id,
+          )
+        : false;
+
+      return (
+        flow.visibility === 'public' &&
+        !isOwner &&
+        !isSharedWithMe
+      );
     });
   }, [flows, currentUser]);
 
@@ -108,7 +123,9 @@ export default function Home() {
     setErrorMessage('');
 
     if (!getToken()) {
-      setErrorMessage('You must be logged in to create a flow.');
+      setErrorMessage(
+        'You must be logged in to create a flow.',
+      );
       return;
     }
 
@@ -143,6 +160,7 @@ export default function Home() {
       setDescription('');
       setVisibility('private');
       setStatus('draft');
+
       setSuccessMessage('Flow created successfully.');
 
       await fetchFlows();
@@ -156,7 +174,9 @@ export default function Home() {
     setErrorMessage('');
 
     if (!getToken()) {
-      setErrorMessage('You must be logged in to delete a flow.');
+      setErrorMessage(
+        'You must be logged in to delete a flow.',
+      );
       return;
     }
 
@@ -164,7 +184,9 @@ export default function Home() {
       'Are you sure you want to delete this flow?',
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       const res = await apiFetch(`/flows/${id}`, {
@@ -172,7 +194,9 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const errorData = (await res.json()) as { message?: string };
+        const errorData = (await res.json()) as {
+          message?: string;
+        };
 
         if (typeof errorData.message === 'string') {
           setErrorMessage(errorData.message);
@@ -184,6 +208,7 @@ export default function Home() {
       }
 
       setSuccessMessage('Flow deleted successfully.');
+
       await fetchFlows();
     } catch {
       setErrorMessage('Could not connect to the server.');
@@ -192,34 +217,47 @@ export default function Home() {
 
   return (
     <main className="mx-auto w-full max-w-6xl p-8 text-white">
-      <h1 className="mb-6 text-2xl font-bold">Flow Management Platform</h1>
+      <h1 className="mb-6 text-2xl font-bold">
+        Flow Management Platform
+      </h1>
 
       {!currentUser && (
         <div className="mb-6 rounded-lg border border-amber-800 bg-amber-950 px-4 py-3 text-amber-300">
-          You are not logged in. You can browse public flows, but creating,
-          editing and deleting requires login.
+          You are not logged in. You can browse public
+          flows, but creating, editing and deleting
+          requires login.
         </div>
       )}
 
       <form
+        data-cy="create-flow-form"
         onSubmit={handleSubmit}
         className="mb-8 space-y-4 rounded-xl border border-neutral-800 bg-neutral-950 p-6 shadow-sm"
       >
-        <h2 className="text-xl font-semibold">Create Flow</h2>
+        <h2 className="text-xl font-semibold">
+          Create Flow
+        </h2>
 
         {successMessage && (
-          <div className="rounded-lg border border-green-800 bg-green-950 px-3 py-2 text-sm text-green-300">
+          <div
+            data-cy="success-message"
+            className="rounded-lg border border-green-800 bg-green-950 px-3 py-2 text-sm text-green-300"
+          >
             {successMessage}
           </div>
         )}
 
         {errorMessage && (
-          <div className="rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300">
+          <div
+            data-cy="error-message"
+            className="rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300"
+          >
             {errorMessage}
           </div>
         )}
 
         <input
+          data-cy="create-flow-title"
           className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           placeholder="Title"
           value={title}
@@ -227,6 +265,7 @@ export default function Home() {
         />
 
         <input
+          data-cy="create-flow-description"
           className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           placeholder="Description"
           value={description}
@@ -234,6 +273,7 @@ export default function Home() {
         />
 
         <select
+          data-cy="flow-visibility"
           className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           value={visibility}
           onChange={(e) => setVisibility(e.target.value)}
@@ -244,6 +284,7 @@ export default function Home() {
         </select>
 
         <select
+          data-cy="flow-status"
           className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -253,26 +294,38 @@ export default function Home() {
           <option value="archived">Archived</option>
         </select>
 
-        <button className="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500">
+        <button
+          data-cy="create-flow-submit"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500"
+        >
           Create Flow
         </button>
       </form>
 
       {currentUser && (
-        <section className="mb-10">
-          <h2 className="mb-4 text-xl font-semibold">My Flows</h2>
+        <section
+          data-cy="my-flows-section"
+          className="mb-10"
+        >
+          <h2 className="mb-4 text-xl font-semibold">
+            My Flows
+          </h2>
 
           {myFlows.length === 0 ? (
-            <p className="text-neutral-400">You have not created any flows yet.</p>
+            <p className="text-neutral-400">
+              You have not created any flows yet.
+            </p>
           ) : (
             <ul className="space-y-4">
               {myFlows.map((flow) => (
                 <li
+                  data-cy="flow-list-item"
                   key={flow.id}
                   className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
                 >
                   <h3 className="font-medium">
                     <Link
+                      data-cy="flow-link"
                       href={`/flows/${flow.id}`}
                       className="text-blue-400 underline"
                     >
@@ -285,10 +338,13 @@ export default function Home() {
                   </p>
 
                   {flow.description && (
-                    <p className="mt-2 text-neutral-200">{flow.description}</p>
+                    <p className="mt-2 text-neutral-200">
+                      {flow.description}
+                    </p>
                   )}
 
                   <button
+                    data-cy="delete-flow-button"
                     onClick={() => handleDelete(flow.id)}
                     className="mt-3 rounded bg-red-600 px-3 py-1 text-white transition hover:bg-red-500"
                   >
@@ -302,8 +358,13 @@ export default function Home() {
       )}
 
       {currentUser && (
-        <section className="mb-10">
-          <h2 className="mb-4 text-xl font-semibold">Shared With Me</h2>
+        <section
+          data-cy="shared-with-me-section"
+          className="mb-10"
+        >
+          <h2 className="mb-4 text-xl font-semibold">
+            Shared With Me
+          </h2>
 
           {sharedWithMeFlows.length === 0 ? (
             <p className="text-neutral-400">
@@ -313,16 +374,19 @@ export default function Home() {
             <ul className="space-y-4">
               {sharedWithMeFlows.map((flow) => {
                 const myAccess = flow.accessList?.find(
-                  (entry) => entry.user.id === currentUser.id,
+                  (entry) =>
+                    entry.user.id === currentUser.id,
                 );
 
                 return (
                   <li
+                    data-cy="shared-flow-list-item"
                     key={flow.id}
                     className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
                   >
                     <h3 className="font-medium">
                       <Link
+                        data-cy="shared-flow-link"
                         href={`/flows/${flow.id}`}
                         className="text-blue-400 underline"
                       >
@@ -335,11 +399,14 @@ export default function Home() {
                     </p>
 
                     {flow.description && (
-                      <p className="mt-2 text-neutral-200">{flow.description}</p>
+                      <p className="mt-2 text-neutral-200">
+                        {flow.description}
+                      </p>
                     )}
 
                     <p className="mt-2 text-sm text-amber-300">
-                      Your role: {myAccess?.role ?? 'viewer'}
+                      Your role:{' '}
+                      {myAccess?.role ?? 'viewer'}
                     </p>
                   </li>
                 );
@@ -349,20 +416,26 @@ export default function Home() {
         </section>
       )}
 
-      <section>
-        <h2 className="mb-4 text-xl font-semibold">Public Flows</h2>
+      <section data-cy="public-flows-section">
+        <h2 className="mb-4 text-xl font-semibold">
+          Public Flows
+        </h2>
 
         {publicFlows.length === 0 ? (
-          <p className="text-neutral-400">No public flows found.</p>
+          <p className="text-neutral-400">
+            No public flows found.
+          </p>
         ) : (
           <ul className="space-y-4">
             {publicFlows.map((flow) => (
               <li
+                data-cy="public-flow-list-item"
                 key={flow.id}
                 className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 shadow-sm"
               >
                 <h3 className="font-medium">
                   <Link
+                    data-cy="public-flow-link"
                     href={`/flows/${flow.id}`}
                     className="text-blue-400 underline"
                   >
@@ -375,7 +448,9 @@ export default function Home() {
                 </p>
 
                 {flow.description && (
-                  <p className="mt-2 text-neutral-200">{flow.description}</p>
+                  <p className="mt-2 text-neutral-200">
+                    {flow.description}
+                  </p>
                 )}
               </li>
             ))}

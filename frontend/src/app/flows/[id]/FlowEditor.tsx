@@ -174,7 +174,9 @@ export default function FlowEditor({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      label: edge.condition ? formatNumberConditionLabel(edge.condition) : edge.label,
+      label: edge.condition
+        ? formatNumberConditionLabel(edge.condition)
+        : edge.label,
       condition: edge.condition,
     }));
   }, [initialGraph, fallbackEdges]);
@@ -665,8 +667,12 @@ export default function FlowEditor({
 
       {canEdit && (
         <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
+          <div
+            data-cy="flow-editor-toolbar"
+            className="flex flex-wrap items-center gap-2"
+          >
             <button
+              data-cy="add-start-node"
               onClick={() => handleAddNode('start')}
               disabled={hasStartNode}
               className="rounded bg-emerald-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -675,6 +681,7 @@ export default function FlowEditor({
             </button>
 
             <button
+              data-cy="add-question-node"
               onClick={() => handleAddNode('question')}
               className="rounded bg-green-600 px-4 py-2 text-white"
             >
@@ -682,6 +689,7 @@ export default function FlowEditor({
             </button>
 
             <button
+              data-cy="add-info-node"
               onClick={() => handleAddNode('info')}
               className="rounded bg-amber-600 px-4 py-2 text-white"
             >
@@ -689,6 +697,7 @@ export default function FlowEditor({
             </button>
 
             <button
+              data-cy="add-end-node"
               onClick={() => handleAddNode('end')}
               className="rounded bg-purple-600 px-4 py-2 text-white"
             >
@@ -696,6 +705,7 @@ export default function FlowEditor({
             </button>
 
             <button
+              data-cy="save-flow-graph"
               onClick={handleSaveFlow}
               disabled={isSaving}
               className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
@@ -711,19 +721,28 @@ export default function FlowEditor({
       )}
 
       {editorMessage && (
-        <div className="rounded-lg border border-amber-800 bg-amber-950 p-3 text-amber-300">
+        <div
+          data-cy="flow-editor-local-message"
+          className="rounded-lg border border-amber-800 bg-amber-950 p-3 text-amber-300"
+        >
           {editorMessage}
         </div>
       )}
 
       {message && (
-        <div className="rounded-lg border border-green-800 bg-green-950 p-3 text-green-300">
+        <div
+          data-cy="flow-editor-success-message"
+          className="rounded-lg border border-green-800 bg-green-950 p-3 text-green-300"
+        >
           {message}
         </div>
       )}
 
       {validationErrors.length > 0 && (
-        <div className="rounded-lg border border-red-800 bg-red-950 p-4 text-red-300">
+        <div
+          data-cy="flow-editor-validation-errors"
+          className="rounded-lg border border-red-800 bg-red-950 p-4 text-red-300"
+        >
           <h3 className="mb-2 font-semibold">Flow validation errors</h3>
           <ul className="list-disc pl-5">
             {validationErrors.map((error, index) => (
@@ -735,7 +754,10 @@ export default function FlowEditor({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 shadow-sm">
-          <div className="h-[650px] w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900">
+          <div
+            data-cy="flow-canvas"
+            className="h-[650px] w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900"
+          >
             <ReactFlow
               nodes={nodes}
               edges={edges}

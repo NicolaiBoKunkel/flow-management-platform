@@ -167,7 +167,10 @@ export default function SharingPanel({ flow }: { flow: Flow }) {
   }
 
   return (
-    <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-white shadow-sm">
+    <section
+      data-cy="sharing-panel"
+      className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-white shadow-sm"
+    >
       <div className="mb-4">
         <h2 className="text-xl font-semibold">Sharing</h2>
         <p className="mt-1 text-sm text-neutral-400">
@@ -176,19 +179,30 @@ export default function SharingPanel({ flow }: { flow: Flow }) {
       </div>
 
       {successMessage && (
-        <div className="mb-4 rounded-lg border border-green-800 bg-green-950 px-3 py-2 text-sm text-green-300">
+        <div
+          data-cy="sharing-success-message"
+          className="mb-4 rounded-lg border border-green-800 bg-green-950 px-3 py-2 text-sm text-green-300"
+        >
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="mb-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300">
+        <div
+          data-cy="sharing-error-message"
+          className="mb-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300"
+        >
           {errorMessage}
         </div>
       )}
 
-      <form onSubmit={handleShare} className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_180px_auto]">
+      <form
+        data-cy="sharing-form"
+        onSubmit={handleShare}
+        className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_180px_auto]"
+      >
         <input
+          data-cy="share-email-input"
           type="email"
           className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           placeholder="Registered user email"
@@ -197,6 +211,7 @@ export default function SharingPanel({ flow }: { flow: Flow }) {
         />
 
         <select
+          data-cy="share-role-select"
           className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
           value={role}
           onChange={(e) => setRole(e.target.value as 'viewer' | 'editor')}
@@ -206,6 +221,7 @@ export default function SharingPanel({ flow }: { flow: Flow }) {
         </select>
 
         <button
+          data-cy="share-flow-submit"
           type="submit"
           disabled={isSubmitting}
           className="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
@@ -214,30 +230,36 @@ export default function SharingPanel({ flow }: { flow: Flow }) {
         </button>
       </form>
 
-      <div>
+      <div data-cy="shared-users-section">
         <h3 className="mb-3 text-lg font-medium">Shared users</h3>
 
         {isLoadingAccess ? (
-          <p className="text-sm text-neutral-400">Loading shared users...</p>
+          <p data-cy="shared-users-loading" className="text-sm text-neutral-400">
+            Loading shared users...
+          </p>
         ) : accessList.length === 0 ? (
-          <p className="text-sm text-neutral-400">
+          <p data-cy="shared-users-empty" className="text-sm text-neutral-400">
             This flow is not shared with any users yet.
           </p>
         ) : (
           <ul className="space-y-3">
             {accessList.map((entry) => (
               <li
+                data-cy="shared-user-item"
                 key={entry.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3"
               >
                 <div>
-                  <p className="font-medium text-white">{entry.user.email}</p>
-                  <p className="text-sm text-neutral-400">
+                  <p data-cy="shared-user-email" className="font-medium text-white">
+                    {entry.user.email}
+                  </p>
+                  <p data-cy="shared-user-role" className="text-sm text-neutral-400">
                     Role: {entry.role}
                   </p>
                 </div>
 
                 <button
+                  data-cy="remove-shared-user"
                   onClick={() => handleRemoveAccess(entry.id)}
                   className="rounded bg-red-600 px-3 py-1 text-sm text-white transition hover:bg-red-500"
                 >

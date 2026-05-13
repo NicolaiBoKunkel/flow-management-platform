@@ -69,9 +69,12 @@ export default function AuthNav() {
             <span className="text-sm text-neutral-400">Loading...</span>
           ) : user ? (
             <>
-              <span className="text-sm text-neutral-300">{user.email}</span>
+              <span data-cy="current-user-email" className="text-sm text-neutral-300">
+                {user.email}
+              </span>
 
               <Link
+                data-cy="switch-user-link"
                 href="/login"
                 className="rounded border border-neutral-700 px-3 py-2 text-sm text-white transition hover:bg-neutral-800"
               >
@@ -79,6 +82,7 @@ export default function AuthNav() {
               </Link>
 
               <button
+                data-cy="logout-button"
                 onClick={handleLogout}
                 className="rounded bg-red-600 px-3 py-2 text-sm text-white transition hover:bg-red-500"
               >
@@ -88,6 +92,7 @@ export default function AuthNav() {
           ) : (
             <>
               <Link
+                data-cy="login-link"
                 href="/login"
                 className="rounded border border-neutral-700 px-3 py-2 text-sm text-white transition hover:bg-neutral-800"
               >
@@ -95,6 +100,7 @@ export default function AuthNav() {
               </Link>
 
               <Link
+                data-cy="register-link"
                 href="/register"
                 className="rounded bg-blue-600 px-3 py-2 text-sm text-white transition hover:bg-blue-500"
               >
