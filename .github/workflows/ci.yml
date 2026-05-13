@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, feature/added-e2e-testing]
   pull_request:
-    branches: [master]
+    branches: [master, feature/added-e2e-testing]
 
 jobs:
   backend:
@@ -103,3 +103,106 @@ jobs:
       - run: npm run lint
 
       - run: npm run build
+
+  e2e:
+    name: Cypress E2E
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: flow_management_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      neo4j:
+        image: neo4j:5
+        env:
+          NEO4J_AUTH: neo4j/password123
+        ports:
+          - 7474:7474
+          - 7687:7687
+        options: >-
+          --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flow_management_test
+      JWT_SECRET: test-jwt-secret
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password123
+      PORT: 3001
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node for backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Start backend
+        working-directory: backend
+        run: npm run start &
+
+      - name: Wait for backend
+        working-directory: backend
+        run: npx wait-on http://localhost:3001/health
+
+      - name: Setup Node for frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: frontend
+        run: npm run start &
+
+      - name: Wait for frontend
+        working-directory: frontend
+        run: npx wait-on http://localhost:3000
+
+      - name: Run Cypress E2E tests
+        working-directory: frontend
+        run: npm run cypress:run

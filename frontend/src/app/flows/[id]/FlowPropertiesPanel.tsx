@@ -128,28 +128,39 @@ export default function FlowPropertiesPanel({
   const isNumberEdge = selectedEdgeSourceQuestionType === 'number';
 
   return (
-    <aside className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm">
+    <aside
+      data-cy="flow-properties-panel"
+      className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-white shadow-sm"
+    >
       <h2 className="mb-4 text-lg font-semibold">Properties</h2>
 
       {!canEdit && (
-        <div className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400">
+        <div
+          data-cy="properties-readonly-message"
+          className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400"
+        >
           You can inspect the selected node or edge, but only the owner can edit
           properties.
         </div>
       )}
 
       {!selectedNodeId && !selectedEdgeId && (
-        <div className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400">
+        <div
+          data-cy="properties-empty-state"
+          className="rounded-lg border border-dashed border-neutral-700 p-4 text-sm text-neutral-400"
+        >
           Select a node or an edge to {canEdit ? 'edit' : 'inspect'} its
           properties.
         </div>
       )}
 
       {selectedNodeId && canEdit && (
-        <div className="space-y-4">
+        <div data-cy="selected-node-panel" className="space-y-4">
           <div>
             <h3 className="text-base font-semibold">Selected Node</h3>
-            <p className="text-sm text-neutral-500">ID: {selectedNodeId}</p>
+            <p data-cy="selected-node-id" className="text-sm text-neutral-500">
+              ID: {selectedNodeId}
+            </p>
           </div>
 
           <div>
@@ -157,6 +168,7 @@ export default function FlowPropertiesPanel({
               Node label
             </label>
             <input
+              data-cy="node-label-input"
               className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
               value={nodeLabel}
               onChange={(e) => setNodeLabel(e.target.value)}
@@ -169,6 +181,7 @@ export default function FlowPropertiesPanel({
               Node type
             </label>
             <select
+              data-cy="node-type-select"
               className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
               value={selectedNodeType}
               onChange={(e) =>
@@ -188,6 +201,7 @@ export default function FlowPropertiesPanel({
                 Intro text
               </label>
               <textarea
+                data-cy="intro-text-input"
                 className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                 value={introText}
                 onChange={(e) => setIntroText(e.target.value)}
@@ -197,12 +211,13 @@ export default function FlowPropertiesPanel({
           )}
 
           {selectedNodeType === 'question' && (
-            <div className="space-y-4">
+            <div data-cy="question-properties" className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-300">
                   Question type
                 </label>
                 <select
+                  data-cy="question-type-select"
                   className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                   value={questionType}
                   onChange={(e) =>
@@ -220,6 +235,7 @@ export default function FlowPropertiesPanel({
                   Question text
                 </label>
                 <textarea
+                  data-cy="question-text-input"
                   className="min-h-[100px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
@@ -235,6 +251,7 @@ export default function FlowPropertiesPanel({
                 Info text
               </label>
               <textarea
+                data-cy="info-text-input"
                 className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                 value={infoText}
                 onChange={(e) => setInfoText(e.target.value)}
@@ -249,6 +266,7 @@ export default function FlowPropertiesPanel({
                 Result text
               </label>
               <textarea
+                data-cy="result-text-input"
                 className="min-h-[120px] w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                 value={resultText}
                 onChange={(e) => setResultText(e.target.value)}
@@ -259,6 +277,7 @@ export default function FlowPropertiesPanel({
 
           <div className="flex flex-col gap-2">
             <button
+              data-cy="update-node-content"
               onClick={handleUpdateNodeContent}
               className="rounded bg-blue-600 px-4 py-2 text-white"
             >
@@ -266,6 +285,7 @@ export default function FlowPropertiesPanel({
             </button>
 
             <button
+              data-cy="delete-node"
               onClick={handleDeleteNode}
               className="rounded bg-red-600 px-4 py-2 text-white"
             >
@@ -276,10 +296,12 @@ export default function FlowPropertiesPanel({
       )}
 
       {selectedNodeId && !canEdit && (
-        <div className="space-y-4">
+        <div data-cy="selected-node-readonly-panel" className="space-y-4">
           <div>
             <h3 className="text-base font-semibold">Selected Node</h3>
-            <p className="text-sm text-neutral-500">ID: {selectedNodeId}</p>
+            <p data-cy="selected-node-id" className="text-sm text-neutral-500">
+              ID: {selectedNodeId}
+            </p>
           </div>
 
           <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
@@ -289,10 +311,12 @@ export default function FlowPropertiesPanel({
       )}
 
       {selectedEdgeId && canEdit && (
-        <div className="space-y-4">
+        <div data-cy="selected-edge-panel" className="space-y-4">
           <div>
             <h3 className="text-base font-semibold">Selected Edge</h3>
-            <p className="text-sm text-neutral-500">ID: {selectedEdgeId}</p>
+            <p data-cy="selected-edge-id" className="text-sm text-neutral-500">
+              ID: {selectedEdgeId}
+            </p>
           </div>
 
           {!isNumberEdge && (
@@ -301,6 +325,7 @@ export default function FlowPropertiesPanel({
                 Edge label
               </label>
               <input
+                data-cy="edge-label-input"
                 className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                 value={edgeLabel}
                 onChange={(e) => setEdgeLabel(e.target.value)}
@@ -310,7 +335,10 @@ export default function FlowPropertiesPanel({
           )}
 
           {isNumberEdge && (
-            <div className="rounded-lg border border-blue-900 bg-blue-950/40 p-4">
+            <div
+              data-cy="number-edge-generated-label"
+              className="rounded-lg border border-blue-900 bg-blue-950/40 p-4"
+            >
               <p className="text-sm font-medium text-blue-300">
                 Edge label is generated automatically
               </p>
@@ -332,12 +360,16 @@ export default function FlowPropertiesPanel({
           )}
 
           {isNumberEdge && (
-            <div className="space-y-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div
+              data-cy="number-condition-panel"
+              className="space-y-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4"
+            >
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-300">
                   Number condition type
                 </label>
                 <select
+                  data-cy="number-condition-mode"
                   className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                   value={numberConditionMode}
                   onChange={(e) =>
@@ -358,6 +390,7 @@ export default function FlowPropertiesPanel({
                       Number condition operator
                     </label>
                     <select
+                      data-cy="number-condition-operator"
                       className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                       value={edgeConditionOperator}
                       onChange={(e) =>
@@ -381,6 +414,7 @@ export default function FlowPropertiesPanel({
                       Number condition value
                     </label>
                     <input
+                      data-cy="number-condition-value"
                       type="number"
                       className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                       value={edgeConditionValue}
@@ -398,6 +432,7 @@ export default function FlowPropertiesPanel({
                       Minimum value
                     </label>
                     <input
+                      data-cy="number-range-min"
                       type="number"
                       className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                       value={edgeConditionMin}
@@ -407,6 +442,7 @@ export default function FlowPropertiesPanel({
 
                     <label className="mt-2 flex items-center gap-2 text-sm text-neutral-300">
                       <input
+                        data-cy="number-range-min-inclusive"
                         type="checkbox"
                         checked={edgeConditionMinInclusive}
                         onChange={(e) =>
@@ -422,6 +458,7 @@ export default function FlowPropertiesPanel({
                       Maximum value
                     </label>
                     <input
+                      data-cy="number-range-max"
                       type="number"
                       className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
                       value={edgeConditionMax}
@@ -431,6 +468,7 @@ export default function FlowPropertiesPanel({
 
                     <label className="mt-2 flex items-center gap-2 text-sm text-neutral-300">
                       <input
+                        data-cy="number-range-max-inclusive"
                         type="checkbox"
                         checked={edgeConditionMaxInclusive}
                         onChange={(e) =>
@@ -447,6 +485,7 @@ export default function FlowPropertiesPanel({
 
           <div className="flex flex-col gap-2">
             <button
+              data-cy="update-edge"
               onClick={handleUpdateEdgeLabel}
               className="rounded bg-blue-600 px-4 py-2 text-white"
             >
@@ -454,6 +493,7 @@ export default function FlowPropertiesPanel({
             </button>
 
             <button
+              data-cy="delete-edge"
               onClick={handleDeleteEdge}
               className="rounded bg-red-600 px-4 py-2 text-white"
             >
@@ -464,10 +504,12 @@ export default function FlowPropertiesPanel({
       )}
 
       {selectedEdgeId && !canEdit && (
-        <div className="space-y-4">
+        <div data-cy="selected-edge-readonly-panel" className="space-y-4">
           <div>
             <h3 className="text-base font-semibold">Selected Edge</h3>
-            <p className="text-sm text-neutral-500">ID: {selectedEdgeId}</p>
+            <p data-cy="selected-edge-id" className="text-sm text-neutral-500">
+              ID: {selectedEdgeId}
+            </p>
           </div>
 
           <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">

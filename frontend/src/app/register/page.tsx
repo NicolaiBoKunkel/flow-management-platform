@@ -66,7 +66,10 @@ export default function RegisterPage() {
         </p>
 
         {errorMessage && (
-          <div className="mb-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300">
+          <div
+            data-cy="register-error"
+            className="mb-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300"
+          >
             {errorMessage}
           </div>
         )}
@@ -77,6 +80,7 @@ export default function RegisterPage() {
               Email
             </label>
             <input
+              data-cy="register-email"
               type="email"
               className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
               value={email}
@@ -90,6 +94,7 @@ export default function RegisterPage() {
               Password
             </label>
             <input
+              data-cy="register-password"
               type="password"
               className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white outline-none transition focus:border-blue-500"
               value={password}
@@ -99,6 +104,7 @@ export default function RegisterPage() {
           </div>
 
           <button
+            data-cy="register-submit"
             type="submit"
             disabled={isSubmitting}
             className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
