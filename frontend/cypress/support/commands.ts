@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 /// <reference types="cypress" />
 
 type FlowVisibility = 'private' | 'shared' | 'public';
