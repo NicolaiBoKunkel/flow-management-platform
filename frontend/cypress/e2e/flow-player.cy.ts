@@ -65,43 +65,16 @@ describe('Flow player', () => {
       ],
     };
 
-    cy.request('POST', 'http://localhost:3001/auth/register', {
-      email,
-      password,
-    }).then((registerResponse) => {
-      const accessToken = registerResponse.body.accessToken;
+    cy.registerUserApi(email, password).then((accessToken) => {
+      cy.createFlowApi(accessToken, {
+        title: flowTitle,
+        description: 'Numeric flow created for Cypress E2E test',
+        visibility: 'private',
+        status: 'draft',
+      }).then((flowId) => {
+        cy.saveGraphApi(accessToken, flowId, numericGraph);
 
-      cy.request({
-        method: 'POST',
-        url: 'http://localhost:3001/flows',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: {
-          title: flowTitle,
-          description: 'Numeric flow created for Cypress E2E test',
-          visibility: 'private',
-          status: 'draft',
-        },
-      }).then((createFlowResponse) => {
-        const flowId = createFlowResponse.body.id;
-
-        cy.request({
-          method: 'PATCH',
-          url: `http://localhost:3001/flows/${flowId}`,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: {
-            graph: numericGraph,
-          },
-        });
-
-        cy.visit('/login');
-
-        cy.get('[data-cy="login-email"]').type(email);
-        cy.get('[data-cy="login-password"]').type(password);
-        cy.get('[data-cy="login-submit"]').click();
+        cy.loginViaUi(email, password);
 
         cy.visit(`/flows/${flowId}/play`);
 

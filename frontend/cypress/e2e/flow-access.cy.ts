@@ -7,12 +7,7 @@ describe('Flow access control', () => {
 
     const validGraph = {
       nodes: [
-        {
-          id: 'start-node',
-          type: 'start',
-          label: 'Start',
-          position: { x: 0, y: 0 },
-        },
+        { id: 'start-node', type: 'start', label: 'Start', position: { x: 0, y: 0 } },
         {
           id: 'question-node',
           type: 'question',
@@ -20,86 +15,29 @@ describe('Flow access control', () => {
           questionType: 'singleChoice',
           position: { x: 250, y: 100 },
         },
-        {
-          id: 'end-node',
-          type: 'end',
-          label: 'End',
-          position: { x: 500, y: 200 },
-        },
+        { id: 'end-node', type: 'end', label: 'End', position: { x: 500, y: 200 } },
       ],
       edges: [
-        {
-          id: 'edge-start-question',
-          source: 'start-node',
-          target: 'question-node',
-        },
-        {
-          id: 'edge-question-end',
-          source: 'question-node',
-          target: 'end-node',
-        },
+        { id: 'edge-start-question', source: 'start-node', target: 'question-node' },
+        { id: 'edge-question-end', source: 'question-node', target: 'end-node' },
       ],
     };
 
-    cy.request('POST', 'http://localhost:3001/auth/register', {
-      email: ownerEmail,
-      password,
-    }).then((ownerRegisterResponse) => {
-      const ownerToken = ownerRegisterResponse.body.accessToken;
+    cy.registerUserApi(ownerEmail, password).then((ownerToken) => {
+      cy.registerUserApi(viewerEmail, password);
 
-      cy.request('POST', 'http://localhost:3001/auth/register', {
-        email: viewerEmail,
-        password,
-      });
+      cy.createFlowApi(ownerToken, {
+        title: flowTitle,
+        description: 'Flow shared with viewer in Cypress E2E test',
+        visibility: 'shared',
+      }).then((flowId) => {
+        cy.saveGraphApi(ownerToken, flowId, validGraph);
+        cy.shareFlowApi(ownerToken, flowId, viewerEmail, 'viewer');
 
-      cy.request({
-        method: 'POST',
-        url: 'http://localhost:3001/flows',
-        headers: {
-          Authorization: `Bearer ${ownerToken}`,
-        },
-        body: {
-          title: flowTitle,
-          description: 'Flow shared with viewer in Cypress E2E test',
-          visibility: 'shared',
-          status: 'draft',
-        },
-      }).then((createFlowResponse) => {
-        const flowId = createFlowResponse.body.id;
-
-        cy.request({
-          method: 'PATCH',
-          url: `http://localhost:3001/flows/${flowId}`,
-          headers: {
-            Authorization: `Bearer ${ownerToken}`,
-          },
-          body: {
-            graph: validGraph,
-          },
-        });
-
-        cy.request({
-          method: 'POST',
-          url: `http://localhost:3001/flows/${flowId}/access`,
-          headers: {
-            Authorization: `Bearer ${ownerToken}`,
-          },
-          body: {
-            email: viewerEmail,
-            role: 'viewer',
-          },
-        });
-
-        cy.visit('/login');
-
-        cy.get('[data-cy="login-email"]').type(viewerEmail);
-        cy.get('[data-cy="login-password"]').type(password);
-        cy.get('[data-cy="login-submit"]').click();
-
+        cy.loginViaUi(viewerEmail, password);
         cy.visit(`/flows/${flowId}`);
 
         cy.contains(flowTitle).should('exist');
-
         cy.get('[data-cy="flow-canvas"]').should('exist');
 
         cy.get('[data-cy="flow-editor-toolbar"]').should('not.exist');
