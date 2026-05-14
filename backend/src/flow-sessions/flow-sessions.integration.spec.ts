@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Server } from 'http';
 import request from 'supertest';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import type {
   DomainNodeType,
   FlowEdge,
@@ -25,6 +26,23 @@ type SessionResponseBody = {
 
 type ErrorResponseBody = {
   message?: string;
+};
+
+type TestRequest = {
+  headers: {
+    'x-test-user-id'?: string;
+    'x-test-user-email'?: string;
+  };
+  user?: {
+    sub: string;
+    email: string;
+  };
+};
+
+type GuardContextMock = {
+  switchToHttp: () => {
+    getRequest: () => TestRequest;
+  };
 };
 
 function node(
@@ -196,11 +214,32 @@ describe('Flow sessions integration', () => {
   let httpServer: Server;
   let prisma: PrismaService;
 
+  const optionalAuthGuardMock = {
+    canActivate: (context: GuardContextMock) => {
+      const requestObject = context.switchToHttp().getRequest();
+      const userId = requestObject.headers['x-test-user-id'];
+      const email = requestObject.headers['x-test-user-email'];
+
+      requestObject.user =
+        userId && email
+          ? {
+              sub: userId,
+              email,
+            }
+          : undefined;
+
+      return true;
+    },
+  };
+
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FlowSessionsController],
       providers: [FlowSessionsService, PrismaService],
-    }).compile();
+    })
+      .overrideGuard(OptionalJwtAuthGuard)
+      .useValue(optionalAuthGuardMock)
+      .compile();
 
     app = module.createNestApplication();
 
@@ -236,21 +275,48 @@ describe('Flow sessions integration', () => {
     }
   });
 
-  async function createFlow(graph: FlowGraph) {
+  function authHeaders(user: { id: string; email: string }) {
+    return {
+      'x-test-user-id': user.id,
+      'x-test-user-email': user.email,
+    };
+  }
+
+  async function createUser(email: string) {
+    return prisma.user.create({
+      data: {
+        email,
+        password: 'test-password-hash',
+      },
+    });
+  }
+
+  async function createFlow(
+    graph: FlowGraph,
+    options?: {
+      visibility?: 'private' | 'shared' | 'public';
+      ownerId?: string;
+    },
+  ) {
     return prisma.flow.create({
       data: {
         title: 'Runtime integration flow',
         description: 'Flow used by flow-session integration tests',
-        visibility: 'public',
+        visibility: options?.visibility ?? 'public',
         status: 'draft',
+        ownerId: options?.ownerId,
         graph,
       },
     });
   }
 
-  async function createSession(flowId: string): Promise<SessionResponseBody> {
+  async function createSession(
+    flowId: string,
+    headers: Record<string, string> = {},
+  ): Promise<SessionResponseBody> {
     const response = await request(httpServer)
       .post(`/flows/${flowId}/sessions`)
+      .set(headers)
       .send()
       .expect(201);
 
@@ -261,9 +327,11 @@ describe('Flow sessions integration', () => {
     flowId: string,
     sessionId: string,
     body: Record<string, unknown> = {},
+    headers: Record<string, string> = {},
   ): Promise<SessionResponseBody> {
     const response = await request(httpServer)
       .post(`/flows/${flowId}/sessions/${sessionId}/advance`)
+      .set(headers)
       .send(body)
       .expect(201);
 
@@ -585,5 +653,69 @@ describe('Flow sessions integration', () => {
     expect(responseBody.message).toBe(
       'Session does not belong to the specified flow.',
     );
+  });
+
+  it('RUN-015 allows anonymous users to start sessions for public flows', async () => {
+    const flow = await createFlow(numericBranchingGraph(), {
+      visibility: 'public',
+    });
+
+    const session = await createSession(flow.id);
+
+    expect(session.flowId).toBe(flow.id);
+    expect(session.currentNode.id).toBe('start');
+  });
+
+  it('RUN-016 rejects anonymous session start for private flows', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(numericBranchingGraph(), {
+      visibility: 'private',
+      ownerId: owner.id,
+    });
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions`)
+      .send()
+      .expect(403);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe('You do not have access to play this flow');
+  });
+
+  it('RUN-017 allows the owner to start sessions for private flows', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(numericBranchingGraph(), {
+      visibility: 'private',
+      ownerId: owner.id,
+    });
+
+    const session = await createSession(flow.id, authHeaders(owner));
+
+    expect(session.flowId).toBe(flow.id);
+    expect(session.currentNode.id).toBe('start');
+  });
+
+  it('RUN-018 allows shared viewers to start sessions for shared flows', async () => {
+    const owner = await createUser('owner@example.com');
+    const viewer = await createUser('viewer@example.com');
+
+    const flow = await createFlow(numericBranchingGraph(), {
+      visibility: 'shared',
+      ownerId: owner.id,
+    });
+
+    await prisma.flowAccess.create({
+      data: {
+        flowId: flow.id,
+        userId: viewer.id,
+        role: 'viewer',
+      },
+    });
+
+    const session = await createSession(flow.id, authHeaders(viewer));
+
+    expect(session.flowId).toBe(flow.id);
+    expect(session.currentNode.id).toBe('start');
   });
 });
