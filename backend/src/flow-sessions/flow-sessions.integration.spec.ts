@@ -680,7 +680,9 @@ describe('Flow sessions integration', () => {
 
     const responseBody = response.body as ErrorResponseBody;
 
-    expect(responseBody.message).toBe('You do not have access to play this flow');
+    expect(responseBody.message).toBe(
+      'You do not have access to play this flow',
+    );
   });
 
   it('RUN-017 allows the owner to start sessions for private flows', async () => {
@@ -717,5 +719,54 @@ describe('Flow sessions integration', () => {
 
     expect(session.flowId).toBe(flow.id);
     expect(session.currentNode.id).toBe('start');
+  });
+
+  it('RUN-019 rejects anonymous advance for a private flow session', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(numericBranchingGraph(), {
+      visibility: 'private',
+      ownerId: owner.id,
+    });
+
+    const session = await createSession(flow.id, authHeaders(owner));
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions/${session.sessionId}/advance`)
+      .send()
+      .expect(403);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe(
+      'You do not have access to play this flow',
+    );
+  });
+
+  it('RUN-020 rejects anonymous back for a private flow session', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createFlow(numericBranchingGraph(), {
+      visibility: 'private',
+      ownerId: owner.id,
+    });
+
+    const session = await createSession(flow.id, authHeaders(owner));
+
+    const questionSession = await advanceSession(
+      flow.id,
+      session.sessionId,
+      {},
+      authHeaders(owner),
+    );
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions/${questionSession.sessionId}/back`)
+      .send()
+      .expect(403);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe(
+      'You do not have access to play this flow',
+    );
   });
 });
