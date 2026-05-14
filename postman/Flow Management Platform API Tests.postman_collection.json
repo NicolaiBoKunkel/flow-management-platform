@@ -10,7 +10,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "AUTH-001 Register Owner",
+          "name": "AUTH-001A Register Owner",
           "event": [
             {
               "listen": "test",
@@ -62,7 +62,7 @@
           "response": []
         },
         {
-          "name": "AUTH-003 Login Owner",
+          "name": "AUTH-003A Login Owner",
           "event": [
             {
               "listen": "test",
@@ -112,7 +112,7 @@
           "response": []
         },
         {
-          "name": "AUTH-001 Register Viewer",
+          "name": "AUTH-001B Register Viewer",
           "event": [
             {
               "listen": "test",
@@ -164,7 +164,7 @@
           "response": []
         },
         {
-          "name": "AUTH-003 Login Viewer",
+          "name": "AUTH-003B Login Viewer",
           "event": [
             {
               "listen": "test",

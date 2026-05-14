@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -32,14 +33,32 @@ type FlowSessionContext = {
 export class FlowSessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(flowId: string) {
+  private async findPlayableFlowOrThrow(flowId: string, userId?: string) {
     const flow = await this.prisma.flow.findUnique({
       where: { id: flowId },
+      include: {
+        accessList: true,
+      },
     });
 
     if (!flow) {
       throw new NotFoundException(`Flow with id ${flowId} not found`);
     }
+
+    const isPublic = flow.visibility === 'public';
+    const isOwner = !!userId && flow.ownerId === userId;
+    const hasSharedAccess =
+      !!userId && flow.accessList.some((entry) => entry.userId === userId);
+
+    if (!isPublic && !isOwner && !hasSharedAccess) {
+      throw new ForbiddenException('You do not have access to play this flow');
+    }
+
+    return flow;
+  }
+
+  async create(flowId: string, userId?: string) {
+    const flow = await this.findPlayableFlowOrThrow(flowId, userId);
 
     if (!flow.graph || typeof flow.graph !== 'object') {
       throw new BadRequestException('Flow does not contain a valid graph.');
@@ -129,6 +148,7 @@ export class FlowSessionsService {
   async advance(
     flowId: string,
     sessionId: string,
+    userId?: string,
     selectedEdgeId?: string,
     numericValue?: number,
     textValue?: string,
@@ -151,13 +171,7 @@ export class FlowSessionsService {
       throw new BadRequestException('Session is not active.');
     }
 
-    const flow = await this.prisma.flow.findUnique({
-      where: { id: flowId },
-    });
-
-    if (!flow) {
-      throw new NotFoundException(`Flow with id ${flowId} not found`);
-    }
+    const flow = await this.findPlayableFlowOrThrow(flowId, userId);
 
     if (!flow.graph || typeof flow.graph !== 'object') {
       throw new BadRequestException('Flow does not contain a valid graph.');
@@ -334,7 +348,7 @@ export class FlowSessionsService {
     };
   }
 
-  async goBack(flowId: string, sessionId: string) {
+  async goBack(flowId: string, sessionId: string, userId?: string) {
     const session = await this.prisma.flowSession.findUnique({
       where: { id: sessionId },
     });
@@ -355,13 +369,7 @@ export class FlowSessionsService {
       );
     }
 
-    const flow = await this.prisma.flow.findUnique({
-      where: { id: flowId },
-    });
-
-    if (!flow) {
-      throw new NotFoundException(`Flow with id ${flowId} not found`);
-    }
+    const flow = await this.findPlayableFlowOrThrow(flowId, userId);
 
     if (!flow.graph || typeof flow.graph !== 'object') {
       throw new BadRequestException('Flow does not contain a valid graph.');
