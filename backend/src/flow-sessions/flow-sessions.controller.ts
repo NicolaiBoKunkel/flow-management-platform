@@ -30,6 +30,7 @@ export class FlowSessionsController {
       selectedEdgeId?: string;
       numericValue?: number;
       textValue?: string;
+      selectedOptions?: string[];
     },
   ) {
     return this.flowSessionsService.advance(
@@ -39,6 +40,7 @@ export class FlowSessionsController {
       body?.selectedEdgeId,
       body?.numericValue,
       body?.textValue,
+      body?.selectedOptions,
     );
   }
 

@@ -12,6 +12,7 @@ function node(
   type: DomainNodeType,
   label: string,
   questionType?: QuestionType,
+  options?: string[],
 ): FlowNode {
   return {
     id,
@@ -22,6 +23,7 @@ function node(
       y: 0,
     },
     questionType,
+    options,
   };
 }
 
@@ -58,6 +60,26 @@ function validTextGraph(): FlowGraph {
     nodes: [
       node('start', 'start', 'Start'),
       node('question', 'question', 'Text question', 'text'),
+      node('end', 'end', 'End'),
+    ],
+    edges: [
+      edge('edge-start-question', 'start', 'question'),
+      edge('edge-question-end', 'question', 'end'),
+    ],
+  };
+}
+
+function validMultipleChoiceGraph(): FlowGraph {
+  return {
+    nodes: [
+      node('start', 'start', 'Start'),
+      node(
+        'question',
+        'question',
+        'Multiple choice question',
+        'multipleChoice',
+        ['Option A', 'Option B', 'Option C'],
+      ),
       node('end', 'end', 'End'),
     ],
     edges: [
@@ -384,6 +406,99 @@ describe('validateFlowGraph - flow graph validation', () => {
     expectErrorContaining(
       errors,
       'Info node "Info" must have at least one outgoing edge.',
+    );
+  });
+
+  it('VAL-018 accepts a multiple choice question with valid options and one outgoing edge', () => {
+    const errors = validateFlowGraph(validMultipleChoiceGraph());
+
+    expect(errors).toEqual([]);
+  });
+
+  it('VAL-019 rejects a multiple choice question with fewer than two options', () => {
+    const graph: FlowGraph = {
+      nodes: [
+        node('start', 'start', 'Start'),
+        node(
+          'question',
+          'question',
+          'Multiple choice question',
+          'multipleChoice',
+          ['Only option'],
+        ),
+        node('end', 'end', 'End'),
+      ],
+      edges: [
+        edge('edge-start-question', 'start', 'question'),
+        edge('edge-question-end', 'question', 'end'),
+      ],
+    };
+
+    const errors = validateFlowGraph(graph);
+
+    expectErrorContaining(
+      errors,
+      'Multiple choice question "Multiple choice question" must have at least two options.',
+    );
+  });
+
+  it('VAL-020 rejects a multiple choice question with multiple outgoing edges', () => {
+    const graph: FlowGraph = {
+      nodes: [
+        node('start', 'start', 'Start'),
+        node(
+          'question',
+          'question',
+          'Multiple choice question',
+          'multipleChoice',
+          ['Option A', 'Option B'],
+        ),
+        node('end-1', 'end', 'End 1'),
+        node('end-2', 'end', 'End 2'),
+      ],
+      edges: [
+        edge('edge-start-question', 'start', 'question'),
+        edge('edge-question-end-1', 'question', 'end-1'),
+        edge('edge-question-end-2', 'question', 'end-2'),
+      ],
+    };
+
+    const errors = validateFlowGraph(graph);
+
+    expectErrorContaining(
+      errors,
+      'Multiple choice question "Multiple choice question" must have exactly one outgoing edge.',
+    );
+  });
+
+  it('VAL-021 rejects a multiple choice question with an edge condition', () => {
+    const graph: FlowGraph = {
+      nodes: [
+        node('start', 'start', 'Start'),
+        node(
+          'question',
+          'question',
+          'Multiple choice question',
+          'multipleChoice',
+          ['Option A', 'Option B'],
+        ),
+        node('end', 'end', 'End'),
+      ],
+      edges: [
+        edge('edge-start-question', 'start', 'question'),
+        edge('edge-question-end', 'question', 'end', {
+          kind: 'number',
+          operator: 'eq',
+          value: 1,
+        }),
+      ],
+    };
+
+    const errors = validateFlowGraph(graph);
+
+    expectErrorContaining(
+      errors,
+      'Multiple choice question "Multiple choice question" cannot use edge conditions.',
     );
   });
 });

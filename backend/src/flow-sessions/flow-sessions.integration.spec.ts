@@ -28,6 +28,18 @@ type ErrorResponseBody = {
   message?: string;
 };
 
+type StoredSessionContext = {
+  answers?: Array<{
+    nodeId: string;
+    selectedEdgeId: string;
+    selectedLabel?: string;
+    numericValue?: number;
+    textValue?: string;
+    selectedOptions?: string[];
+    answeredAt: string;
+  }>;
+};
+
 type TestRequest = {
   headers: {
     'x-test-user-id'?: string;
@@ -50,12 +62,14 @@ function node(
   type: DomainNodeType,
   label: string,
   questionType?: QuestionType,
+  options?: string[],
 ): FlowNode {
   return {
     id,
     type,
     label,
     questionType,
+    options,
     position: {
       x: 0,
       y: 0,
@@ -205,6 +219,26 @@ function textGraph(): FlowGraph {
     edges: [
       edge('edge-start-text', 'start', 'text-question'),
       edge('edge-text-end', 'text-question', 'end'),
+    ],
+  };
+}
+
+function multipleChoiceGraph(): FlowGraph {
+  return {
+    nodes: [
+      node('start', 'start', 'Start'),
+      node(
+        'multiple-choice-question',
+        'question',
+        'Choose multiple options',
+        'multipleChoice',
+        ['Option A', 'Option B', 'Option C'],
+      ),
+      node('end', 'end', 'End'),
+    ],
+    edges: [
+      edge('edge-start-multiple-choice', 'start', 'multiple-choice-question'),
+      edge('edge-multiple-choice-end', 'multiple-choice-question', 'end'),
     ],
   };
 }
@@ -767,6 +801,75 @@ describe('Flow sessions integration', () => {
 
     expect(responseBody.message).toBe(
       'You do not have access to play this flow',
+    );
+  });
+
+  it('RUN-021 rejects multiple choice advance without selectedOptions', async () => {
+    const flow = await createFlow(multipleChoiceGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions/${questionSession.sessionId}/advance`)
+      .send()
+      .expect(400);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe(
+      'selectedOptions is required for multiple choice questions.',
+    );
+  });
+
+  it('RUN-022 advances multiple choice question when selectedOptions are provided', async () => {
+    const flow = await createFlow(multipleChoiceGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const completedSession = await advanceSession(
+      flow.id,
+      questionSession.sessionId,
+      {
+        selectedOptions: ['Option A', 'Option C'],
+      },
+    );
+
+    expect(completedSession.status).toBe('completed');
+    expect(completedSession.currentNode.id).toBe('end');
+
+    const storedSession = await prisma.flowSession.findUniqueOrThrow({
+      where: {
+        id: completedSession.sessionId,
+      },
+    });
+
+    const context = storedSession.context as StoredSessionContext;
+    const answer = context.answers?.find(
+      (entry) => entry.nodeId === 'multiple-choice-question',
+    );
+
+    expect(answer?.selectedOptions).toEqual(['Option A', 'Option C']);
+  });
+
+  it('RUN-023 rejects multiple choice advance with an invalid option', async () => {
+    const flow = await createFlow(multipleChoiceGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions/${questionSession.sessionId}/advance`)
+      .send({
+        selectedOptions: ['Option A', 'Invalid option'],
+      })
+      .expect(400);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe(
+      'selectedOptions contains values that are not valid options for this question.',
     );
   });
 });

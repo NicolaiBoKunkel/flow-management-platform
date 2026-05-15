@@ -49,7 +49,8 @@ type FlowEditorProps = {
         x: number;
         y: number;
       };
-      questionType?: 'singleChoice' | 'number' | 'text';
+      questionType?: QuestionType;
+      options?: string[];
       introText?: string;
       questionText?: string;
       resultText?: string;
@@ -127,6 +128,7 @@ export default function FlowEditor({
           label: 'Question',
           nodeType: 'question',
           questionType: 'singleChoice',
+          options: [],
           introText: '',
           questionText: '',
           resultText: '',
@@ -155,6 +157,10 @@ export default function FlowEditor({
         questionType:
           node.type === 'question'
             ? (node.questionType ?? 'singleChoice')
+            : undefined,
+        options:
+          node.type === 'question' && node.questionType === 'multipleChoice'
+            ? (node.options ?? [])
             : undefined,
         introText: node.introText ?? '',
         questionText: node.questionText ?? '',
@@ -190,6 +196,9 @@ export default function FlowEditor({
   const [questionText, setQuestionText] = useState('');
   const [resultText, setResultText] = useState('');
   const [infoText, setInfoText] = useState('');
+  const [multipleChoiceOptions, setMultipleChoiceOptions] = useState<string[]>(
+    [],
+  );
   const [edgeLabel, setEdgeLabel] = useState('');
   const [selectedNodeType, setSelectedNodeType] =
     useState<DomainNodeType>('question');
@@ -265,6 +274,17 @@ export default function FlowEditor({
     setEdgeConditionMaxInclusive(true);
   }
 
+  function resetSelectedNodeForm() {
+    setNodeLabel('');
+    setIntroText('');
+    setQuestionText('');
+    setResultText('');
+    setInfoText('');
+    setMultipleChoiceOptions([]);
+    setSelectedNodeType('question');
+    setQuestionType('singleChoice');
+  }
+
   function setLocalEditorFeedback(text: string) {
     setEditorMessage(text);
     setMessage('');
@@ -327,6 +347,11 @@ export default function FlowEditor({
     setQuestionText(String(node.data?.questionText ?? ''));
     setResultText(String(node.data?.resultText ?? ''));
     setInfoText(String(node.data?.infoText ?? ''));
+    setMultipleChoiceOptions(
+      Array.isArray(node.data?.options)
+        ? (node.data.options as string[])
+        : [],
+    );
     setSelectedNodeType((node.data?.nodeType as DomainNodeType) ?? 'question');
     setQuestionType(
       (node.data?.questionType as QuestionType | undefined) ?? 'singleChoice',
@@ -343,13 +368,7 @@ export default function FlowEditor({
 
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
-    setNodeLabel('');
-    setIntroText('');
-    setQuestionText('');
-    setResultText('');
-    setInfoText('');
-    setSelectedNodeType('question');
-    setQuestionType('singleChoice');
+    resetSelectedNodeForm();
     setSelectedEdgeSourceQuestionType(sourceQuestionType);
 
     if (typedEdge.condition?.kind === 'number') {
@@ -379,6 +398,10 @@ export default function FlowEditor({
   function handleUpdateNodeContent() {
     if (!canEdit || !selectedNodeId) return;
 
+    const cleanedMultipleChoiceOptions = multipleChoiceOptions
+      .map((option) => option.trim())
+      .filter((option) => option !== '');
+
     setNodes((nds) =>
       nds.map((node) =>
         node.id === selectedNodeId
@@ -391,6 +414,11 @@ export default function FlowEditor({
                   (node.data?.nodeType as DomainNodeType) === 'question'
                     ? questionType
                     : undefined,
+                options:
+                  (node.data?.nodeType as DomainNodeType) === 'question' &&
+                  questionType === 'multipleChoice'
+                    ? cleanedMultipleChoiceOptions
+                    : undefined,
                 introText,
                 questionText,
                 resultText,
@@ -400,6 +428,8 @@ export default function FlowEditor({
           : node,
       ),
     );
+
+    setMultipleChoiceOptions(cleanedMultipleChoiceOptions);
 
     setLocalEditorFeedback(
       'Node content updated in editor. Remember to save the flow.',
@@ -426,6 +456,8 @@ export default function FlowEditor({
         (currentSelectedNode?.data?.questionType as QuestionType | undefined) ??
           'singleChoice',
       );
+    } else {
+      setMultipleChoiceOptions([]);
     }
 
     setNodes((nds) =>
@@ -441,6 +473,11 @@ export default function FlowEditor({
                   newType === 'question'
                     ? ((node.data?.questionType as QuestionType | undefined) ??
                       'singleChoice')
+                    : undefined,
+                options:
+                  newType === 'question' &&
+                  node.data?.questionType === 'multipleChoice'
+                    ? node.data.options
                     : undefined,
               },
               style: getNodeStyle(newType, true),
@@ -473,10 +510,7 @@ export default function FlowEditor({
           value: Number(edgeConditionValue),
         };
       } else {
-        if (
-          edgeConditionMin.trim() === '' ||
-          edgeConditionMax.trim() === ''
-        ) {
+        if (edgeConditionMin.trim() === '' || edgeConditionMax.trim() === '') {
           setValidationErrors(['Number range min and max are required.']);
           return;
         }
@@ -509,9 +543,7 @@ export default function FlowEditor({
 
     setEdgeLabel(updatedLabel);
     setValidationErrors([]);
-    setLocalEditorFeedback(
-      'Edge updated in editor. Remember to save the flow.',
-    );
+    setLocalEditorFeedback('Edge updated in editor. Remember to save the flow.');
   }
 
   function handleDeleteNode() {
@@ -527,13 +559,7 @@ export default function FlowEditor({
     );
 
     setSelectedNodeId(null);
-    setNodeLabel('');
-    setIntroText('');
-    setQuestionText('');
-    setResultText('');
-    setInfoText('');
-    setSelectedNodeType('question');
-    setQuestionType('singleChoice');
+    resetSelectedNodeForm();
 
     setLocalEditorFeedback('Node deleted in editor. Remember to save the flow.');
   }
@@ -569,40 +595,51 @@ export default function FlowEditor({
 
     try {
       const graph = {
-        nodes: nodes.map((node) => ({
-          id: node.id,
-          type: (node.data?.nodeType as DomainNodeType) ?? 'question',
-          label: String(node.data?.label ?? ''),
-          position: {
-            x: node.position.x,
-            y: node.position.y,
-          },
-          questionType:
-            (node.data?.nodeType as DomainNodeType) === 'question'
+        nodes: nodes.map((node) => {
+          const nodeType = (node.data?.nodeType as DomainNodeType) ?? 'question';
+          const nodeQuestionType =
+            nodeType === 'question'
               ? ((node.data?.questionType as QuestionType | undefined) ??
                 'singleChoice')
-              : undefined,
-          introText:
-            typeof node.data?.introText === 'string' &&
-            node.data.introText.trim() !== ''
-              ? node.data.introText
-              : undefined,
-          questionText:
-            typeof node.data?.questionText === 'string' &&
-            node.data.questionText.trim() !== ''
-              ? node.data.questionText
-              : undefined,
-          resultText:
-            typeof node.data?.resultText === 'string' &&
-            node.data.resultText.trim() !== ''
-              ? node.data.resultText
-              : undefined,
-          infoText:
-            typeof node.data?.infoText === 'string' &&
-            node.data.infoText.trim() !== ''
-              ? node.data.infoText
-              : undefined,
-        })),
+              : undefined;
+
+          return {
+            id: node.id,
+            type: nodeType,
+            label: String(node.data?.label ?? ''),
+            position: {
+              x: node.position.x,
+              y: node.position.y,
+            },
+            questionType: nodeQuestionType,
+            options:
+              nodeType === 'question' && nodeQuestionType === 'multipleChoice'
+                ? Array.isArray(node.data?.options)
+                  ? (node.data.options as string[])
+                  : []
+                : undefined,
+            introText:
+              typeof node.data?.introText === 'string' &&
+              node.data.introText.trim() !== ''
+                ? node.data.introText
+                : undefined,
+            questionText:
+              typeof node.data?.questionText === 'string' &&
+              node.data.questionText.trim() !== ''
+                ? node.data.questionText
+                : undefined,
+            resultText:
+              typeof node.data?.resultText === 'string' &&
+              node.data.resultText.trim() !== ''
+                ? node.data.resultText
+                : undefined,
+            infoText:
+              typeof node.data?.infoText === 'string' &&
+              node.data.infoText.trim() !== ''
+                ? node.data.infoText
+                : undefined,
+          };
+        }),
         edges: edges.map((edge) => {
           const typedEdge = edge as FlowEditorEdge;
           const label = typedEdge.condition
@@ -791,6 +828,8 @@ export default function FlowEditor({
           setResultText={setResultText}
           infoText={infoText}
           setInfoText={setInfoText}
+          multipleChoiceOptions={multipleChoiceOptions}
+          setMultipleChoiceOptions={setMultipleChoiceOptions}
           edgeLabel={edgeLabel}
           setEdgeLabel={setEdgeLabel}
           selectedNodeType={selectedNodeType}

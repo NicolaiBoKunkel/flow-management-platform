@@ -128,6 +128,13 @@ function hasFullNumberCoverage(intervals: NumberInterval[]): boolean {
   return currentCoverageEnd === Number.POSITIVE_INFINITY;
 }
 
+function hasDuplicateOptions(options: string[]): boolean {
+  const normalizedOptions = options.map((option) =>
+    option.trim().toLowerCase(),
+  );
+  return new Set(normalizedOptions).size !== normalizedOptions.length;
+}
+
 export function validateFlowGraph(graph: FlowGraph): string[] {
   const errors: string[] = [];
 
@@ -161,11 +168,36 @@ export function validateFlowGraph(graph: FlowGraph): string[] {
       } else if (
         node.questionType !== 'singleChoice' &&
         node.questionType !== 'number' &&
-        node.questionType !== 'text'
+        node.questionType !== 'text' &&
+        node.questionType !== 'multipleChoice'
       ) {
         errors.push(
           `Question node "${node.label}" uses unsupported questionType "${String(node.questionType)}".`,
         );
+      }
+
+      if (node.questionType === 'multipleChoice') {
+        if (!Array.isArray(node.options) || node.options.length < 2) {
+          errors.push(
+            `Multiple choice question "${node.label}" must have at least two options.`,
+          );
+        } else {
+          const hasEmptyOption = node.options.some(
+            (option) => option.trim() === '',
+          );
+
+          if (hasEmptyOption) {
+            errors.push(
+              `Multiple choice question "${node.label}" cannot have empty options.`,
+            );
+          }
+
+          if (hasDuplicateOptions(node.options)) {
+            errors.push(
+              `Multiple choice question "${node.label}" cannot have duplicate options.`,
+            );
+          }
+        }
       }
     }
   }
@@ -337,6 +369,22 @@ export function validateFlowGraph(graph: FlowGraph): string[] {
         if (edge.condition) {
           errors.push(
             `Text question "${node.label}" cannot use edge conditions.`,
+          );
+        }
+      }
+    }
+
+    if (node.type === 'question' && node.questionType === 'multipleChoice') {
+      if (outgoingEdges.length !== 1) {
+        errors.push(
+          `Multiple choice question "${node.label}" must have exactly one outgoing edge.`,
+        );
+      }
+
+      for (const edge of outgoingEdges) {
+        if (edge.condition) {
+          errors.push(
+            `Multiple choice question "${node.label}" cannot use edge conditions.`,
           );
         }
       }
