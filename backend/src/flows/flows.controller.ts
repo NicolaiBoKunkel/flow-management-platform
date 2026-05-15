@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CreateFlowDto } from './dto/create-flow.dto';
+import { ImportFlowDto } from './dto/import-flow.dto';
 import { ShareFlowDto } from './dto/share-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { FlowsService } from './flows.service';
@@ -40,10 +41,25 @@ export class FlowsController {
     return this.flowsService.findMine(req.user!.sub);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post('import')
+  importFlow(
+    @Body() importFlowDto: ImportFlowDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.flowsService.importFlow(importFlowDto, req.user!.sub);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.flowsService.findOne(id, req.user?.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/export')
+  exportFlow(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.flowsService.exportFlow(id, req.user!.sub);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -40,6 +40,8 @@ export default function Home() {
   const [status, setStatus] = useState('draft');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   async function fetchFlows() {
     const res = await apiFetch('/flows');
@@ -90,29 +92,19 @@ export default function Home() {
     return flows.filter(
       (flow) =>
         flow.ownerId !== currentUser.id &&
-        flow.accessList?.some(
-          (entry) => entry.user.id === currentUser.id,
-        ),
+        flow.accessList?.some((entry) => entry.user.id === currentUser.id),
     );
   }, [flows, currentUser]);
 
   const publicFlows = useMemo(() => {
     return flows.filter((flow) => {
-      const isOwner = currentUser
-        ? flow.ownerId === currentUser.id
-        : false;
+      const isOwner = currentUser ? flow.ownerId === currentUser.id : false;
 
       const isSharedWithMe = currentUser
-        ? flow.accessList?.some(
-            (entry) => entry.user.id === currentUser.id,
-          )
+        ? flow.accessList?.some((entry) => entry.user.id === currentUser.id)
         : false;
 
-      return (
-        flow.visibility === 'public' &&
-        !isOwner &&
-        !isSharedWithMe
-      );
+      return flow.visibility === 'public' && !isOwner && !isSharedWithMe;
     });
   }, [flows, currentUser]);
 
@@ -123,9 +115,7 @@ export default function Home() {
     setErrorMessage('');
 
     if (!getToken()) {
-      setErrorMessage(
-        'You must be logged in to create a flow.',
-      );
+      setErrorMessage('You must be logged in to create a flow.');
       return;
     }
 
@@ -169,20 +159,82 @@ export default function Home() {
     }
   }
 
+  async function handleImportFlow(e: React.FormEvent) {
+    e.preventDefault();
+
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    if (!getToken()) {
+      setErrorMessage('You must be logged in to import a flow.');
+      return;
+    }
+
+    if (!importFile) {
+      setErrorMessage('Please choose a JSON file to import.');
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      const fileText = await importFile.text();
+      const parsedJson = JSON.parse(fileText) as unknown;
+
+      const res = await apiFetch('/flows/import', {
+        method: 'POST',
+        body: JSON.stringify(parsedJson),
+      });
+
+      if (!res.ok) {
+        const errorData = (await res.json()) as {
+          message?: string | string[];
+          errors?: string[];
+        };
+
+        if (Array.isArray(errorData.errors)) {
+          setErrorMessage(errorData.errors.join(', '));
+        } else if (Array.isArray(errorData.message)) {
+          setErrorMessage(errorData.message.join(', '));
+        } else if (typeof errorData.message === 'string') {
+          setErrorMessage(errorData.message);
+        } else {
+          setErrorMessage('Failed to import flow.');
+        }
+
+        return;
+      }
+
+      setImportFile(null);
+      setSuccessMessage('Flow imported successfully.');
+
+      const fileInput = document.querySelector<HTMLInputElement>(
+        '[data-cy="import-flow-file"]',
+      );
+
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      await fetchFlows();
+    } catch (error) {
+      console.error('Failed to import flow:', error);
+      setErrorMessage('The selected file could not be imported as valid JSON.');
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   async function handleDelete(id: string) {
     setSuccessMessage('');
     setErrorMessage('');
 
     if (!getToken()) {
-      setErrorMessage(
-        'You must be logged in to delete a flow.',
-      );
+      setErrorMessage('You must be logged in to delete a flow.');
       return;
     }
 
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this flow?',
-    );
+    const confirmed = window.confirm('Are you sure you want to delete this flow?');
 
     if (!confirmed) {
       return;
@@ -217,15 +269,12 @@ export default function Home() {
 
   return (
     <main className="mx-auto w-full max-w-6xl p-8 text-white">
-      <h1 className="mb-6 text-2xl font-bold">
-        Flow Management Platform
-      </h1>
+      <h1 className="mb-6 text-2xl font-bold">Flow Management Platform</h1>
 
       {!currentUser && (
         <div className="mb-6 rounded-lg border border-amber-800 bg-amber-950 px-4 py-3 text-amber-300">
-          You are not logged in. You can browse public
-          flows, but creating, editing and deleting
-          requires login.
+          You are not logged in. You can browse public flows, but creating,
+          editing, importing and deleting requires login.
         </div>
       )}
 
@@ -234,9 +283,7 @@ export default function Home() {
         onSubmit={handleSubmit}
         className="mb-8 space-y-4 rounded-xl border border-neutral-800 bg-neutral-950 p-6 shadow-sm"
       >
-        <h2 className="text-xl font-semibold">
-          Create Flow
-        </h2>
+        <h2 className="text-xl font-semibold">Create Flow</h2>
 
         {successMessage && (
           <div
@@ -303,13 +350,41 @@ export default function Home() {
       </form>
 
       {currentUser && (
-        <section
-          data-cy="my-flows-section"
-          className="mb-10"
+        <form
+          data-cy="import-flow-form"
+          onSubmit={handleImportFlow}
+          className="mb-8 space-y-4 rounded-xl border border-neutral-800 bg-neutral-950 p-6 shadow-sm"
         >
-          <h2 className="mb-4 text-xl font-semibold">
-            My Flows
-          </h2>
+          <div>
+            <h2 className="text-xl font-semibold">Import Flow</h2>
+            <p className="mt-1 text-sm text-neutral-400">
+              Import a previously exported flow JSON file. Imported flows are
+              created as your own private draft.
+            </p>
+          </div>
+
+          <input
+            data-cy="import-flow-file"
+            type="file"
+            accept="application/json,.json"
+            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white file:mr-4 file:rounded file:border-0 file:bg-blue-700 file:px-3 file:py-1 file:text-white"
+            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+          />
+
+          <button
+            data-cy="import-flow-submit"
+            type="submit"
+            disabled={isImporting}
+            className="rounded-lg bg-emerald-700 px-4 py-2 text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isImporting ? 'Importing...' : 'Import Flow'}
+          </button>
+        </form>
+      )}
+
+      {currentUser && (
+        <section data-cy="my-flows-section" className="mb-10">
+          <h2 className="mb-4 text-xl font-semibold">My Flows</h2>
 
           {myFlows.length === 0 ? (
             <p className="text-neutral-400">
@@ -338,9 +413,7 @@ export default function Home() {
                   </p>
 
                   {flow.description && (
-                    <p className="mt-2 text-neutral-200">
-                      {flow.description}
-                    </p>
+                    <p className="mt-2 text-neutral-200">{flow.description}</p>
                   )}
 
                   <button
@@ -358,13 +431,8 @@ export default function Home() {
       )}
 
       {currentUser && (
-        <section
-          data-cy="shared-with-me-section"
-          className="mb-10"
-        >
-          <h2 className="mb-4 text-xl font-semibold">
-            Shared With Me
-          </h2>
+        <section data-cy="shared-with-me-section" className="mb-10">
+          <h2 className="mb-4 text-xl font-semibold">Shared With Me</h2>
 
           {sharedWithMeFlows.length === 0 ? (
             <p className="text-neutral-400">
@@ -374,8 +442,7 @@ export default function Home() {
             <ul className="space-y-4">
               {sharedWithMeFlows.map((flow) => {
                 const myAccess = flow.accessList?.find(
-                  (entry) =>
-                    entry.user.id === currentUser.id,
+                  (entry) => entry.user.id === currentUser.id,
                 );
 
                 return (
@@ -405,8 +472,7 @@ export default function Home() {
                     )}
 
                     <p className="mt-2 text-sm text-amber-300">
-                      Your role:{' '}
-                      {myAccess?.role ?? 'viewer'}
+                      Your role: {myAccess?.role ?? 'viewer'}
                     </p>
                   </li>
                 );
@@ -417,14 +483,10 @@ export default function Home() {
       )}
 
       <section data-cy="public-flows-section">
-        <h2 className="mb-4 text-xl font-semibold">
-          Public Flows
-        </h2>
+        <h2 className="mb-4 text-xl font-semibold">Public Flows</h2>
 
         {publicFlows.length === 0 ? (
-          <p className="text-neutral-400">
-            No public flows found.
-          </p>
+          <p className="text-neutral-400">No public flows found.</p>
         ) : (
           <ul className="space-y-4">
             {publicFlows.map((flow) => (
@@ -448,9 +510,7 @@ export default function Home() {
                 </p>
 
                 {flow.description && (
-                  <p className="mt-2 text-neutral-200">
-                    {flow.description}
-                  </p>
+                  <p className="mt-2 text-neutral-200">{flow.description}</p>
                 )}
               </li>
             ))}

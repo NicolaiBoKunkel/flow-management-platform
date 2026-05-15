@@ -42,6 +42,8 @@ export default function FlowDetailPage({
   const [isNotFound, setIsNotFound] = useState(false);
   const [flowId, setFlowId] = useState<string | null>(null);
   const [analysisRefreshKey, setAnalysisRefreshKey] = useState(0);
+  const [exportError, setExportError] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     async function resolveParamsAndFetch() {
@@ -82,6 +84,58 @@ export default function FlowDetailPage({
 
   function handleGraphSaved() {
     setAnalysisRefreshKey((current) => current + 1);
+  }
+
+  function createSafeFilename(title: string) {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  async function handleExportFlow() {
+    if (!flow) return;
+
+    setIsExporting(true);
+    setExportError('');
+
+    try {
+      const res = await apiFetch(`/flows/${flow.id}/export`);
+
+      if (!res.ok) {
+        const errorData = (await res.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+
+        setExportError(errorData?.message ?? 'Failed to export flow.');
+        return;
+      }
+
+      const exportData = await res.json();
+      const json = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([json], {
+        type: 'application/json',
+      });
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      const safeTitle = createSafeFilename(flow.title) || 'flow-export';
+
+      link.href = objectUrl;
+      link.download = `${safeTitle}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Failed to export flow:', error);
+      setExportError('An unexpected error occurred while exporting the flow.');
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   if (isLoading) {
@@ -136,23 +190,41 @@ export default function FlowDetailPage({
           <p className="text-sm text-neutral-500">
             Created: {new Date(flow.createdAt).toLocaleString()}
           </p>
+
+          {exportError && (
+            <div
+              data-cy="export-flow-error"
+              className="mt-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300"
+            >
+              {exportError}
+            </div>
+          )}
         </div>
 
-        <Link
-          href={`/flows/${flow.id}/play`}
-          className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
-        >
-          Play Flow
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <button
+            data-cy="export-flow-button"
+            type="button"
+            onClick={handleExportFlow}
+            disabled={isExporting}
+            className="rounded bg-emerald-700 px-4 py-2 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isExporting ? 'Exporting...' : 'Export Flow'}
+          </button>
+
+          <Link
+            href={`/flows/${flow.id}/play`}
+            className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
+          >
+            Play Flow
+          </Link>
+        </div>
       </div>
 
       <EditFlowForm flow={flow} />
       <SharingPanel flow={flow} />
 
-      <FlowAnalysisPanel
-        flowId={flow.id}
-        refreshKey={analysisRefreshKey}
-      />
+      <FlowAnalysisPanel flowId={flow.id} refreshKey={analysisRefreshKey} />
 
       <div className="mt-8">
         <h2 className="mb-4 text-xl font-semibold">Flow Editor</h2>
