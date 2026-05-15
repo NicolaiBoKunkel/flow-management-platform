@@ -30,6 +30,18 @@ type FlowSessionContext = {
   answers: FlowSessionAnswerEntry[];
 };
 
+type FlowSessionAnswerSummary = {
+  nodeId: string;
+  questionLabel: string;
+  questionText?: string;
+  questionType?: FlowNode['questionType'];
+  selectedLabel?: string;
+  numericValue?: number;
+  textValue?: string;
+  selectedOptions?: string[];
+  answeredAt: string;
+};
+
 @Injectable()
 export class FlowSessionsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -56,6 +68,29 @@ export class FlowSessionsService {
     }
 
     return flow;
+  }
+
+  private buildAnswerSummary(
+    graph: FlowGraph,
+    answers: FlowSessionAnswerEntry[],
+  ): FlowSessionAnswerSummary[] {
+    return answers.map((answer) => {
+      const node = graph.nodes.find(
+        (graphNode) => graphNode.id === answer.nodeId,
+      );
+
+      return {
+        nodeId: answer.nodeId,
+        questionLabel: node?.label ?? answer.nodeId,
+        questionText: node?.questionText,
+        questionType: node?.questionType,
+        selectedLabel: answer.selectedLabel,
+        numericValue: answer.numericValue,
+        textValue: answer.textValue,
+        selectedOptions: answer.selectedOptions,
+        answeredAt: answer.answeredAt,
+      };
+    });
   }
 
   async create(flowId: string, userId?: string) {
@@ -111,6 +146,7 @@ export class FlowSessionsService {
       status: session.status,
       currentNode: startNode,
       canGoBack: false,
+      answerSummary: [],
     };
   }
 
@@ -403,6 +439,7 @@ export class FlowSessionsService {
       status: updatedSession.status,
       currentNode: nextNode,
       canGoBack: updatedHistory.length > 1,
+      answerSummary: this.buildAnswerSummary(graph, updatedAnswers),
     };
   }
 
@@ -502,6 +539,7 @@ export class FlowSessionsService {
       status: updatedSession.status,
       currentNode: previousNode,
       canGoBack: newHistory.length > 1,
+      answerSummary: this.buildAnswerSummary(graph, updatedAnswers),
     };
   }
 }

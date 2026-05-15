@@ -16,12 +16,20 @@ import { FlowSessionsService } from './flow-sessions.service';
 
 type SessionStatus = 'active' | 'completed' | 'abandoned';
 
+type AnswerSummaryEntry = {
+  nodeId: string;
+  question: string;
+  answer: string | number | string[];
+  answeredAt: string;
+};
+
 type SessionResponseBody = {
   sessionId: string;
   flowId: string;
   status: SessionStatus;
   currentNode: FlowNode;
   canGoBack: boolean;
+  answerSummary: AnswerSummaryEntry[];
 };
 
 type ErrorResponseBody = {
@@ -382,6 +390,7 @@ describe('Flow sessions integration', () => {
     expect(session.currentNode.id).toBe('start');
     expect(session.currentNode.type).toBe('start');
     expect(session.canGoBack).toBe(false);
+    expect(session.answerSummary).toEqual([]);
   });
 
   it('RUN-002 advances from start node to the next node', async () => {
@@ -430,6 +439,14 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('yes-end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'choice-question',
+        questionLabel: 'Choose one',
+        questionType: 'singleChoice',
+        selectedLabel: 'Yes',
+      }),
+    ]);
   });
 
   it('RUN-005 chooses the correct edge for a number question', async () => {
@@ -448,6 +465,15 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('young-end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'age-question',
+        questionLabel: 'How old are you?',
+        questionType: 'number',
+        numericValue: 17,
+        selectedLabel: '< 18',
+      }),
+    ]);
   });
 
   it.each([
@@ -576,6 +602,14 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'text-question',
+        questionLabel: 'Write something',
+        questionType: 'text',
+        textValue: 'This is a test answer',
+      }),
+    ]);
   });
 
   it('RUN-009 goes back to the previous node', async () => {
@@ -594,6 +628,7 @@ describe('Flow sessions integration', () => {
     expect(responseBody.status).toBe('active');
     expect(responseBody.currentNode.id).toBe('start');
     expect(responseBody.canGoBack).toBe(false);
+    expect(responseBody.answerSummary).toEqual([]);
   });
 
   it('RUN-010 rejects going back when there is no previous step', async () => {
@@ -838,6 +873,14 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'multiple-choice-question',
+        questionLabel: 'Choose multiple options',
+        questionType: 'multipleChoice',
+        selectedOptions: ['Option A', 'Option C'],
+      }),
+    ]);
 
     const storedSession = await prisma.flowSession.findUniqueOrThrow({
       where: {

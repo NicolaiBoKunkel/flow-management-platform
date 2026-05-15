@@ -55,6 +55,13 @@ export type FlowGraph = {
   edges: FlowEdge[];
 };
 
+export type FlowAnswerSummaryEntry = {
+  nodeId: string;
+  questionLabel: string;
+  questionType: QuestionType;
+  answer: string;
+};
+
 export type FlowEditorProps = {
   flowId: string;
   initialGraph?: FlowGraph | null;

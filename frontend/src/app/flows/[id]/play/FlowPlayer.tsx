@@ -9,12 +9,25 @@ type FlowPlayerProps = {
   graph: FlowGraph | null;
 };
 
+type AnswerSummaryEntry = {
+  nodeId: string;
+  questionLabel: string;
+  questionText?: string;
+  questionType?: FlowNode['questionType'];
+  selectedLabel?: string;
+  numericValue?: number;
+  textValue?: string;
+  selectedOptions?: string[];
+  answeredAt: string;
+};
+
 type SessionResponse = {
   sessionId: string;
   flowId: string;
   status: 'active' | 'completed' | 'abandoned';
   currentNode: FlowNode;
   canGoBack: boolean;
+  answerSummary?: AnswerSummaryEntry[];
 };
 
 export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
@@ -32,6 +45,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
   const [numericValue, setNumericValue] = useState('');
   const [textValue, setTextValue] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [answerSummary, setAnswerSummary] = useState<AnswerSummaryEntry[]>([]);
 
   const outgoingEdges = useMemo(() => {
     if (!graph || !currentNode) {
@@ -67,6 +81,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
+      setAnswerSummary(data.answerSummary ?? []);
       setHasStarted(true);
       resetInputs();
     } catch (err) {
@@ -89,6 +104,26 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         ? currentOptions.filter((currentOption) => currentOption !== option)
         : [...currentOptions, option],
     );
+  }
+
+  function formatAnswer(answer: AnswerSummaryEntry): string {
+    if (typeof answer.numericValue === 'number') {
+      return String(answer.numericValue);
+    }
+
+    if (typeof answer.textValue === 'string' && answer.textValue.trim() !== '') {
+      return answer.textValue;
+    }
+
+    if (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length > 0) {
+      return answer.selectedOptions.join(', ');
+    }
+
+    if (typeof answer.selectedLabel === 'string' && answer.selectedLabel.trim() !== '') {
+      return answer.selectedLabel;
+    }
+
+    return 'No answer recorded';
   }
 
   async function advance(
@@ -143,6 +178,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
+      setAnswerSummary(data.answerSummary ?? []);
       resetInputs();
     } catch (err) {
       console.error('Failed to advance flow session:', err);
@@ -216,6 +252,7 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
+      setAnswerSummary(data.answerSummary ?? []);
       resetInputs();
     } catch (err) {
       console.error('Failed to go back in flow session:', err);
@@ -526,6 +563,49 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
           >
             This flow has been completed.
           </div>
+
+          {answerSummary.length > 0 && (
+            <div
+              data-cy="answer-summary"
+              className="rounded-xl border border-neutral-700 bg-neutral-950 p-5"
+            >
+              <h3 className="mb-4 text-lg font-semibold text-white">
+                Answer summary
+              </h3>
+
+              <div className="space-y-4">
+                {answerSummary.map((answer) => (
+                  <div
+                    data-cy="answer-summary-item"
+                    key={`${answer.nodeId}-${answer.answeredAt}`}
+                    className="rounded-lg border border-neutral-800 bg-neutral-900 p-4"
+                  >
+                    <p className="text-sm uppercase tracking-wide text-neutral-500">
+                      Question
+                    </p>
+
+                    <p
+                      data-cy="answer-summary-question"
+                      className="mt-1 font-medium text-neutral-100"
+                    >
+                      {answer.questionText || answer.questionLabel}
+                    </p>
+
+                    <p className="mt-3 text-sm uppercase tracking-wide text-neutral-500">
+                      You answered
+                    </p>
+
+                    <p
+                      data-cy="answer-summary-answer"
+                      className="mt-1 whitespace-pre-wrap text-neutral-200"
+                    >
+                      {formatAnswer(answer)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

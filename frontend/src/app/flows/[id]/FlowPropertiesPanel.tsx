@@ -301,9 +301,9 @@ export default function FlowPropertiesPanel({
                           data-cy="remove-multiple-choice-option"
                           type="button"
                           onClick={() => removeMultipleChoiceOption(index)}
-                          className="rounded border border-red-800 px-3 py-2 text-sm text-red-300 hover:bg-red-950"
+                          className="rounded border bg-red-950 px-3 py-2 text-sm text-red-100 hover:bg-red-800"
                         >
-                          Remove
+                          X
                         </button>
                       </div>
                     ))}
