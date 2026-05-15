@@ -21,12 +21,25 @@ type FlowSessionAnswerEntry = {
   selectedLabel?: string;
   numericValue?: number;
   textValue?: string;
+  selectedOptions?: string[];
   answeredAt: string;
 };
 
 type FlowSessionContext = {
   history: FlowSessionHistoryEntry[];
   answers: FlowSessionAnswerEntry[];
+};
+
+type FlowSessionAnswerSummary = {
+  nodeId: string;
+  questionLabel: string;
+  questionText?: string;
+  questionType?: FlowNode['questionType'];
+  selectedLabel?: string;
+  numericValue?: number;
+  textValue?: string;
+  selectedOptions?: string[];
+  answeredAt: string;
 };
 
 @Injectable()
@@ -55,6 +68,29 @@ export class FlowSessionsService {
     }
 
     return flow;
+  }
+
+  private buildAnswerSummary(
+    graph: FlowGraph,
+    answers: FlowSessionAnswerEntry[],
+  ): FlowSessionAnswerSummary[] {
+    return answers.map((answer) => {
+      const node = graph.nodes.find(
+        (graphNode) => graphNode.id === answer.nodeId,
+      );
+
+      return {
+        nodeId: answer.nodeId,
+        questionLabel: node?.label ?? answer.nodeId,
+        questionText: node?.questionText,
+        questionType: node?.questionType,
+        selectedLabel: answer.selectedLabel,
+        numericValue: answer.numericValue,
+        textValue: answer.textValue,
+        selectedOptions: answer.selectedOptions,
+        answeredAt: answer.answeredAt,
+      };
+    });
   }
 
   async create(flowId: string, userId?: string) {
@@ -110,6 +146,7 @@ export class FlowSessionsService {
       status: session.status,
       currentNode: startNode,
       canGoBack: false,
+      answerSummary: [],
     };
   }
 
@@ -145,6 +182,41 @@ export class FlowSessionsService {
     }
   }
 
+  private validateSelectedOptions(
+    currentNode: FlowNode,
+    selectedOptions?: string[],
+  ): string[] {
+    if (!Array.isArray(selectedOptions) || selectedOptions.length === 0) {
+      throw new BadRequestException(
+        'selectedOptions is required for multiple choice questions.',
+      );
+    }
+
+    const cleanedSelectedOptions = selectedOptions.map((option) =>
+      option.trim(),
+    );
+
+    if (cleanedSelectedOptions.some((option) => option === '')) {
+      throw new BadRequestException(
+        'selectedOptions cannot contain empty values.',
+      );
+    }
+
+    const availableOptions = currentNode.options ?? [];
+
+    const invalidOptions = cleanedSelectedOptions.filter(
+      (selectedOption) => !availableOptions.includes(selectedOption),
+    );
+
+    if (invalidOptions.length > 0) {
+      throw new BadRequestException(
+        'selectedOptions contains values that are not valid options for this question.',
+      );
+    }
+
+    return cleanedSelectedOptions;
+  }
+
   async advance(
     flowId: string,
     sessionId: string,
@@ -152,6 +224,7 @@ export class FlowSessionsService {
     selectedEdgeId?: string,
     numericValue?: number,
     textValue?: string,
+    selectedOptions?: string[],
   ) {
     const session = await this.prisma.flowSession.findUnique({
       where: { id: sessionId },
@@ -200,6 +273,7 @@ export class FlowSessionsService {
     }
 
     let chosenEdge: FlowEdge | undefined;
+    let cleanedSelectedOptions: string[] | undefined;
 
     if (
       currentNode.type === 'question' &&
@@ -249,6 +323,22 @@ export class FlowSessionsService {
       if (outgoingEdges.length !== 1) {
         throw new BadRequestException(
           'Text questions must have exactly one outgoing edge.',
+        );
+      }
+
+      chosenEdge = outgoingEdges[0];
+    } else if (
+      currentNode.type === 'question' &&
+      currentNode.questionType === 'multipleChoice'
+    ) {
+      cleanedSelectedOptions = this.validateSelectedOptions(
+        currentNode,
+        selectedOptions,
+      );
+
+      if (outgoingEdges.length !== 1) {
+        throw new BadRequestException(
+          'Multiple choice questions must have exactly one outgoing edge.',
         );
       }
 
@@ -309,6 +399,10 @@ export class FlowSessionsService {
                 currentNode.questionType === 'text'
                   ? textValue?.trim()
                   : undefined,
+              selectedOptions:
+                currentNode.questionType === 'multipleChoice'
+                  ? cleanedSelectedOptions
+                  : undefined,
               answeredAt: new Date().toISOString(),
             },
           ]
@@ -345,6 +439,7 @@ export class FlowSessionsService {
       status: updatedSession.status,
       currentNode: nextNode,
       canGoBack: updatedHistory.length > 1,
+      answerSummary: this.buildAnswerSummary(graph, updatedAnswers),
     };
   }
 
@@ -444,6 +539,7 @@ export class FlowSessionsService {
       status: updatedSession.status,
       currentNode: previousNode,
       canGoBack: newHistory.length > 1,
+      answerSummary: this.buildAnswerSummary(graph, updatedAnswers),
     };
   }
 }

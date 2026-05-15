@@ -2,15 +2,23 @@
 
 import { useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
-import type {
-  FlowEdge,
-  FlowGraph,
-  FlowNode,
-} from '../flow-editor.types';
+import type { FlowGraph, FlowNode } from '../flow-editor.types';
 
 type FlowPlayerProps = {
   flowId: string;
   graph: FlowGraph | null;
+};
+
+type AnswerSummaryEntry = {
+  nodeId: string;
+  questionLabel: string;
+  questionText?: string;
+  questionType?: FlowNode['questionType'];
+  selectedLabel?: string;
+  numericValue?: number;
+  textValue?: string;
+  selectedOptions?: string[];
+  answeredAt: string;
 };
 
 type SessionResponse = {
@@ -19,6 +27,7 @@ type SessionResponse = {
   status: 'active' | 'completed' | 'abandoned';
   currentNode: FlowNode;
   canGoBack: boolean;
+  answerSummary?: AnswerSummaryEntry[];
 };
 
 export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
@@ -35,6 +44,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
   const [error, setError] = useState('');
   const [numericValue, setNumericValue] = useState('');
   const [textValue, setTextValue] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [answerSummary, setAnswerSummary] = useState<AnswerSummaryEntry[]>([]);
 
   const outgoingEdges = useMemo(() => {
     if (!graph || !currentNode) {
@@ -70,9 +81,9 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
+      setAnswerSummary(data.answerSummary ?? []);
       setHasStarted(true);
-      setNumericValue('');
-      setTextValue('');
+      resetInputs();
     } catch (err) {
       console.error('Failed to start flow session:', err);
       setError('An unexpected error occurred while starting play mode.');
@@ -81,10 +92,45 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     }
   }
 
+  function resetInputs() {
+    setNumericValue('');
+    setTextValue('');
+    setSelectedOptions([]);
+  }
+
+  function toggleSelectedOption(option: string) {
+    setSelectedOptions((currentOptions) =>
+      currentOptions.includes(option)
+        ? currentOptions.filter((currentOption) => currentOption !== option)
+        : [...currentOptions, option],
+    );
+  }
+
+  function formatAnswer(answer: AnswerSummaryEntry): string {
+    if (typeof answer.numericValue === 'number') {
+      return String(answer.numericValue);
+    }
+
+    if (typeof answer.textValue === 'string' && answer.textValue.trim() !== '') {
+      return answer.textValue;
+    }
+
+    if (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length > 0) {
+      return answer.selectedOptions.join(', ');
+    }
+
+    if (typeof answer.selectedLabel === 'string' && answer.selectedLabel.trim() !== '') {
+      return answer.selectedLabel;
+    }
+
+    return 'No answer recorded';
+  }
+
   async function advance(
     selectedEdgeId?: string,
     submittedNumericValue?: number,
     submittedTextValue?: string,
+    submittedSelectedOptions?: string[],
   ) {
     if (!sessionId) return;
 
@@ -93,13 +139,15 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
 
     try {
       const body =
-        typeof submittedNumericValue === 'number'
-          ? { numericValue: submittedNumericValue }
-          : typeof submittedTextValue === 'string'
-            ? { textValue: submittedTextValue }
-            : selectedEdgeId
-              ? { selectedEdgeId }
-              : {};
+        Array.isArray(submittedSelectedOptions)
+          ? { selectedOptions: submittedSelectedOptions }
+          : typeof submittedNumericValue === 'number'
+            ? { numericValue: submittedNumericValue }
+            : typeof submittedTextValue === 'string'
+              ? { textValue: submittedTextValue }
+              : selectedEdgeId
+                ? { selectedEdgeId }
+                : {};
 
       const response = await apiFetch(
         `/flows/${flowId}/sessions/${sessionId}/advance`,
@@ -130,8 +178,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
-      setNumericValue('');
-      setTextValue('');
+      setAnswerSummary(data.answerSummary ?? []);
+      resetInputs();
     } catch (err) {
       console.error('Failed to advance flow session:', err);
       setError('An unexpected error occurred while advancing the flow.');
@@ -158,6 +206,15 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
     }
 
     await advance(undefined, undefined, textValue.trim());
+  }
+
+  async function submitMultipleChoiceAnswer() {
+    if (selectedOptions.length === 0) {
+      setError('Please select at least one option.');
+      return;
+    }
+
+    await advance(undefined, undefined, undefined, selectedOptions);
   }
 
   async function goBack() {
@@ -195,8 +252,8 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
       setCurrentNode(data.currentNode);
       setSessionStatus(data.status);
       setCanGoBack(data.canGoBack);
-      setNumericValue('');
-      setTextValue('');
+      setAnswerSummary(data.answerSummary ?? []);
+      resetInputs();
     } catch (err) {
       console.error('Failed to go back in flow session:', err);
       setError('An unexpected error occurred while going back.');
@@ -424,8 +481,49 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
         )}
 
       {currentNode.type === 'question' &&
+        currentNode.questionType === 'multipleChoice' && (
+          <div data-cy="multiple-choice-question-view" className="space-y-6">
+            <p
+              data-cy="question-text"
+              className="text-lg leading-7 text-neutral-100"
+            >
+              {currentNode.questionText || currentNode.label}
+            </p>
+
+            <div className="space-y-3">
+              {(currentNode.options ?? []).map((option) => (
+                <label
+                  data-cy="multiple-choice-option"
+                  key={option}
+                  className="flex cursor-pointer items-center gap-3 rounded border border-neutral-700 bg-neutral-950 px-4 py-3 text-white hover:bg-neutral-800"
+                >
+                  <input
+                    data-cy="multiple-choice-option-checkbox"
+                    type="checkbox"
+                    checked={selectedOptions.includes(option)}
+                    onChange={() => toggleSelectedOption(option)}
+                    disabled={isAdvancing || isGoingBack}
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </div>
+
+            <button
+              data-cy="submit-multiple-choice-answer"
+              onClick={submitMultipleChoiceAnswer}
+              disabled={isAdvancing || isGoingBack}
+              className="rounded bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
+            >
+              {isAdvancing ? 'Submitting...' : 'Submit'}
+            </button>
+          </div>
+        )}
+
+      {currentNode.type === 'question' &&
         currentNode.questionType !== 'number' &&
-        currentNode.questionType !== 'text' && (
+        currentNode.questionType !== 'text' &&
+        currentNode.questionType !== 'multipleChoice' && (
           <div data-cy="single-choice-question-view" className="space-y-6">
             <p
               data-cy="question-text"
@@ -465,6 +563,49 @@ export default function FlowPlayer({ flowId, graph }: FlowPlayerProps) {
           >
             This flow has been completed.
           </div>
+
+          {answerSummary.length > 0 && (
+            <div
+              data-cy="answer-summary"
+              className="rounded-xl border border-neutral-700 bg-neutral-950 p-5"
+            >
+              <h3 className="mb-4 text-lg font-semibold text-white">
+                Answer summary
+              </h3>
+
+              <div className="space-y-4">
+                {answerSummary.map((answer) => (
+                  <div
+                    data-cy="answer-summary-item"
+                    key={`${answer.nodeId}-${answer.answeredAt}`}
+                    className="rounded-lg border border-neutral-800 bg-neutral-900 p-4"
+                  >
+                    <p className="text-sm uppercase tracking-wide text-neutral-500">
+                      Question
+                    </p>
+
+                    <p
+                      data-cy="answer-summary-question"
+                      className="mt-1 font-medium text-neutral-100"
+                    >
+                      {answer.questionText || answer.questionLabel}
+                    </p>
+
+                    <p className="mt-3 text-sm uppercase tracking-wide text-neutral-500">
+                      You answered
+                    </p>
+
+                    <p
+                      data-cy="answer-summary-answer"
+                      className="mt-1 whitespace-pre-wrap text-neutral-200"
+                    >
+                      {formatAnswer(answer)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

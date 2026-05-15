@@ -16,16 +16,36 @@ import { FlowSessionsService } from './flow-sessions.service';
 
 type SessionStatus = 'active' | 'completed' | 'abandoned';
 
+type AnswerSummaryEntry = {
+  nodeId: string;
+  question: string;
+  answer: string | number | string[];
+  answeredAt: string;
+};
+
 type SessionResponseBody = {
   sessionId: string;
   flowId: string;
   status: SessionStatus;
   currentNode: FlowNode;
   canGoBack: boolean;
+  answerSummary: AnswerSummaryEntry[];
 };
 
 type ErrorResponseBody = {
   message?: string;
+};
+
+type StoredSessionContext = {
+  answers?: Array<{
+    nodeId: string;
+    selectedEdgeId: string;
+    selectedLabel?: string;
+    numericValue?: number;
+    textValue?: string;
+    selectedOptions?: string[];
+    answeredAt: string;
+  }>;
 };
 
 type TestRequest = {
@@ -50,12 +70,14 @@ function node(
   type: DomainNodeType,
   label: string,
   questionType?: QuestionType,
+  options?: string[],
 ): FlowNode {
   return {
     id,
     type,
     label,
     questionType,
+    options,
     position: {
       x: 0,
       y: 0,
@@ -209,6 +231,26 @@ function textGraph(): FlowGraph {
   };
 }
 
+function multipleChoiceGraph(): FlowGraph {
+  return {
+    nodes: [
+      node('start', 'start', 'Start'),
+      node(
+        'multiple-choice-question',
+        'question',
+        'Choose multiple options',
+        'multipleChoice',
+        ['Option A', 'Option B', 'Option C'],
+      ),
+      node('end', 'end', 'End'),
+    ],
+    edges: [
+      edge('edge-start-multiple-choice', 'start', 'multiple-choice-question'),
+      edge('edge-multiple-choice-end', 'multiple-choice-question', 'end'),
+    ],
+  };
+}
+
 describe('Flow sessions integration', () => {
   let app: INestApplication;
   let httpServer: Server;
@@ -348,6 +390,7 @@ describe('Flow sessions integration', () => {
     expect(session.currentNode.id).toBe('start');
     expect(session.currentNode.type).toBe('start');
     expect(session.canGoBack).toBe(false);
+    expect(session.answerSummary).toEqual([]);
   });
 
   it('RUN-002 advances from start node to the next node', async () => {
@@ -396,6 +439,14 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('yes-end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'choice-question',
+        questionLabel: 'Choose one',
+        questionType: 'singleChoice',
+        selectedLabel: 'Yes',
+      }),
+    ]);
   });
 
   it('RUN-005 chooses the correct edge for a number question', async () => {
@@ -414,6 +465,15 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('young-end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'age-question',
+        questionLabel: 'How old are you?',
+        questionType: 'number',
+        numericValue: 17,
+        selectedLabel: '< 18',
+      }),
+    ]);
   });
 
   it.each([
@@ -542,6 +602,14 @@ describe('Flow sessions integration', () => {
 
     expect(completedSession.status).toBe('completed');
     expect(completedSession.currentNode.id).toBe('end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'text-question',
+        questionLabel: 'Write something',
+        questionType: 'text',
+        textValue: 'This is a test answer',
+      }),
+    ]);
   });
 
   it('RUN-009 goes back to the previous node', async () => {
@@ -560,6 +628,7 @@ describe('Flow sessions integration', () => {
     expect(responseBody.status).toBe('active');
     expect(responseBody.currentNode.id).toBe('start');
     expect(responseBody.canGoBack).toBe(false);
+    expect(responseBody.answerSummary).toEqual([]);
   });
 
   it('RUN-010 rejects going back when there is no previous step', async () => {
@@ -767,6 +836,83 @@ describe('Flow sessions integration', () => {
 
     expect(responseBody.message).toBe(
       'You do not have access to play this flow',
+    );
+  });
+
+  it('RUN-021 rejects multiple choice advance without selectedOptions', async () => {
+    const flow = await createFlow(multipleChoiceGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions/${questionSession.sessionId}/advance`)
+      .send()
+      .expect(400);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe(
+      'selectedOptions is required for multiple choice questions.',
+    );
+  });
+
+  it('RUN-022 advances multiple choice question when selectedOptions are provided', async () => {
+    const flow = await createFlow(multipleChoiceGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const completedSession = await advanceSession(
+      flow.id,
+      questionSession.sessionId,
+      {
+        selectedOptions: ['Option A', 'Option C'],
+      },
+    );
+
+    expect(completedSession.status).toBe('completed');
+    expect(completedSession.currentNode.id).toBe('end');
+    expect(completedSession.answerSummary).toEqual([
+      expect.objectContaining({
+        nodeId: 'multiple-choice-question',
+        questionLabel: 'Choose multiple options',
+        questionType: 'multipleChoice',
+        selectedOptions: ['Option A', 'Option C'],
+      }),
+    ]);
+
+    const storedSession = await prisma.flowSession.findUniqueOrThrow({
+      where: {
+        id: completedSession.sessionId,
+      },
+    });
+
+    const context = storedSession.context as StoredSessionContext;
+    const answer = context.answers?.find(
+      (entry) => entry.nodeId === 'multiple-choice-question',
+    );
+
+    expect(answer?.selectedOptions).toEqual(['Option A', 'Option C']);
+  });
+
+  it('RUN-023 rejects multiple choice advance with an invalid option', async () => {
+    const flow = await createFlow(multipleChoiceGraph());
+    const session = await createSession(flow.id);
+
+    const questionSession = await advanceSession(flow.id, session.sessionId);
+
+    const response = await request(httpServer)
+      .post(`/flows/${flow.id}/sessions/${questionSession.sessionId}/advance`)
+      .send({
+        selectedOptions: ['Option A', 'Invalid option'],
+      })
+      .expect(400);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe(
+      'selectedOptions contains values that are not valid options for this question.',
     );
   });
 });

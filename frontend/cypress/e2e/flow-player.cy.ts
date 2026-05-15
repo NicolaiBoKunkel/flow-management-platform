@@ -97,6 +97,23 @@ describe('Flow player', () => {
           'contain',
           'This flow has been completed.',
         );
+
+        cy.get('[data-cy="answer-summary"]').should('exist');
+
+        cy.get('[data-cy="answer-summary-item"]').should(
+          'have.length',
+          1,
+        );
+
+        cy.get('[data-cy="answer-summary-question"]').should(
+          'contain',
+          'How old are you?',
+        );
+
+        cy.get('[data-cy="answer-summary-answer"]').should(
+          'contain',
+          '18',
+        );
       });
     });
   });

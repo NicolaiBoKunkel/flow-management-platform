@@ -2,7 +2,11 @@ export type NumberOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
 
 export type DomainNodeType = 'start' | 'question' | 'end' | 'info';
 
-export type QuestionType = 'singleChoice' | 'number' | 'text';
+export type QuestionType =
+  | 'singleChoice'
+  | 'number'
+  | 'text'
+  | 'multipleChoice';
 
 export type SingleNumberCondition = {
   kind: 'number';
@@ -29,6 +33,7 @@ export type FlowNode = {
     y: number;
   };
   questionType?: QuestionType;
+  options?: string[];
   introText?: string;
   questionText?: string;
   resultText?: string;

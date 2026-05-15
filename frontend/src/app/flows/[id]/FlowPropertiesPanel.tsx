@@ -1,5 +1,6 @@
 'use client';
 
+import type { Dispatch, SetStateAction } from 'react';
 import type {
   DomainNodeType,
   NumberConditionMode,
@@ -12,37 +13,37 @@ type FlowPropertiesPanelProps = {
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   nodeLabel: string;
-  setNodeLabel: React.Dispatch<React.SetStateAction<string>>;
+  setNodeLabel: Dispatch<SetStateAction<string>>;
   introText: string;
-  setIntroText: React.Dispatch<React.SetStateAction<string>>;
+  setIntroText: Dispatch<SetStateAction<string>>;
   questionText: string;
-  setQuestionText: React.Dispatch<React.SetStateAction<string>>;
+  setQuestionText: Dispatch<SetStateAction<string>>;
   resultText: string;
-  setResultText: React.Dispatch<React.SetStateAction<string>>;
+  setResultText: Dispatch<SetStateAction<string>>;
   infoText: string;
-  setInfoText: React.Dispatch<React.SetStateAction<string>>;
+  setInfoText: Dispatch<SetStateAction<string>>;
+  multipleChoiceOptions: string[];
+  setMultipleChoiceOptions: Dispatch<SetStateAction<string[]>>;
   edgeLabel: string;
-  setEdgeLabel: React.Dispatch<React.SetStateAction<string>>;
+  setEdgeLabel: Dispatch<SetStateAction<string>>;
   selectedNodeType: DomainNodeType;
   questionType: QuestionType;
-  setQuestionType: React.Dispatch<React.SetStateAction<QuestionType>>;
+  setQuestionType: Dispatch<SetStateAction<QuestionType>>;
   selectedEdgeSourceQuestionType: QuestionType | null;
   numberConditionMode: NumberConditionMode;
-  setNumberConditionMode: React.Dispatch<
-    React.SetStateAction<NumberConditionMode>
-  >;
+  setNumberConditionMode: Dispatch<SetStateAction<NumberConditionMode>>;
   edgeConditionOperator: NumberOperator;
-  setEdgeConditionOperator: React.Dispatch<React.SetStateAction<NumberOperator>>;
+  setEdgeConditionOperator: Dispatch<SetStateAction<NumberOperator>>;
   edgeConditionValue: string;
-  setEdgeConditionValue: React.Dispatch<React.SetStateAction<string>>;
+  setEdgeConditionValue: Dispatch<SetStateAction<string>>;
   edgeConditionMin: string;
-  setEdgeConditionMin: React.Dispatch<React.SetStateAction<string>>;
+  setEdgeConditionMin: Dispatch<SetStateAction<string>>;
   edgeConditionMax: string;
-  setEdgeConditionMax: React.Dispatch<React.SetStateAction<string>>;
+  setEdgeConditionMax: Dispatch<SetStateAction<string>>;
   edgeConditionMinInclusive: boolean;
-  setEdgeConditionMinInclusive: React.Dispatch<React.SetStateAction<boolean>>;
+  setEdgeConditionMinInclusive: Dispatch<SetStateAction<boolean>>;
   edgeConditionMaxInclusive: boolean;
-  setEdgeConditionMaxInclusive: React.Dispatch<React.SetStateAction<boolean>>;
+  setEdgeConditionMaxInclusive: Dispatch<SetStateAction<boolean>>;
   handleUpdateNodeType: (newType: DomainNodeType) => void;
   handleUpdateNodeContent: () => void;
   handleDeleteNode: () => void;
@@ -99,6 +100,8 @@ export default function FlowPropertiesPanel({
   setResultText,
   infoText,
   setInfoText,
+  multipleChoiceOptions,
+  setMultipleChoiceOptions,
   edgeLabel,
   setEdgeLabel,
   selectedNodeType,
@@ -126,6 +129,24 @@ export default function FlowPropertiesPanel({
   handleDeleteEdge,
 }: FlowPropertiesPanelProps) {
   const isNumberEdge = selectedEdgeSourceQuestionType === 'number';
+
+  function updateMultipleChoiceOption(index: number, value: string) {
+    setMultipleChoiceOptions((currentOptions) =>
+      currentOptions.map((option, optionIndex) =>
+        optionIndex === index ? value : option,
+      ),
+    );
+  }
+
+  function addMultipleChoiceOption() {
+    setMultipleChoiceOptions((currentOptions) => [...currentOptions, '']);
+  }
+
+  function removeMultipleChoiceOption(index: number) {
+    setMultipleChoiceOptions((currentOptions) =>
+      currentOptions.filter((_, optionIndex) => optionIndex !== index),
+    );
+  }
 
   return (
     <aside
@@ -227,6 +248,7 @@ export default function FlowPropertiesPanel({
                   <option value="singleChoice">Single choice</option>
                   <option value="number">Number</option>
                   <option value="text">Text</option>
+                  <option value="multipleChoice">Multiple choice</option>
                 </select>
               </div>
 
@@ -242,6 +264,61 @@ export default function FlowPropertiesPanel({
                   placeholder="What should the user be asked?"
                 />
               </div>
+
+              {questionType === 'multipleChoice' && (
+                <div
+                  data-cy="multiple-choice-options-panel"
+                  className="space-y-3 rounded-lg border border-neutral-800 bg-neutral-900 p-4"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-neutral-300">
+                      Multiple choice options
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Add at least two options. The flow will continue through
+                      one outgoing edge while storing the selected options.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {multipleChoiceOptions.map((option, index) => (
+                      <div
+                        key={index}
+                        data-cy="multiple-choice-option-row"
+                        className="flex gap-2"
+                      >
+                        <input
+                          data-cy="multiple-choice-option-input"
+                          className="flex-1 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none transition focus:border-blue-500"
+                          value={option}
+                          onChange={(e) =>
+                            updateMultipleChoiceOption(index, e.target.value)
+                          }
+                          placeholder={`Option ${index + 1}`}
+                        />
+
+                        <button
+                          data-cy="remove-multiple-choice-option"
+                          type="button"
+                          onClick={() => removeMultipleChoiceOption(index)}
+                          className="rounded border bg-red-950 px-3 py-2 text-sm text-red-100 hover:bg-red-800"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    data-cy="add-multiple-choice-option"
+                    type="button"
+                    onClick={addMultipleChoiceOption}
+                    className="rounded border border-neutral-700 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+                  >
+                    Add option
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
