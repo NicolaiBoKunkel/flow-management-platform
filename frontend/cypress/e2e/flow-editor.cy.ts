@@ -6,7 +6,12 @@ describe('Flow editor', () => {
 
     const validGraph = {
       nodes: [
-        { id: 'start-node', type: 'start', label: 'Start', position: { x: 0, y: 0 } },
+        {
+          id: 'start-node',
+          type: 'start',
+          label: 'Start',
+          position: { x: 0, y: 0 },
+        },
         {
           id: 'question-node',
           type: 'question',
@@ -14,11 +19,24 @@ describe('Flow editor', () => {
           questionType: 'singleChoice',
           position: { x: 250, y: 120 },
         },
-        { id: 'end-node', type: 'end', label: 'End', position: { x: 500, y: 240 } },
+        {
+          id: 'end-node',
+          type: 'end',
+          label: 'End',
+          position: { x: 500, y: 240 },
+        },
       ],
       edges: [
-        { id: 'edge-start-question', source: 'start-node', target: 'question-node' },
-        { id: 'edge-question-end', source: 'question-node', target: 'end-node' },
+        {
+          id: 'edge-start-question',
+          source: 'start-node',
+          target: 'question-node',
+        },
+        {
+          id: 'edge-question-end',
+          source: 'question-node',
+          target: 'end-node',
+        },
       ],
     };
 
@@ -51,6 +69,99 @@ describe('Flow editor', () => {
         cy.get('[data-cy="flow-editor-success-message"]').should(
           'contain',
           'Flow graph gemt',
+        );
+      });
+    });
+  });
+
+  it('E2E-007 exports and imports a flow', () => {
+    const email = `import-export-${Date.now()}@test.com`;
+    const password = 'test123456';
+    const flowTitle = `Import Export Flow ${Date.now()}`;
+
+    const exportFileName = `${flowTitle
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')}.json`;
+
+    const validGraph = {
+      nodes: [
+        {
+          id: 'start-node',
+          type: 'start',
+          label: 'Start',
+          introText: 'Imported/exported start text.',
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: 'question-node',
+          type: 'question',
+          label: 'Question',
+          questionType: 'text',
+          questionText: 'What should be exported?',
+          position: { x: 250, y: 120 },
+        },
+        {
+          id: 'end-node',
+          type: 'end',
+          label: 'End',
+          resultText: 'Imported/exported result.',
+          position: { x: 500, y: 240 },
+        },
+      ],
+      edges: [
+        {
+          id: 'edge-start-question',
+          source: 'start-node',
+          target: 'question-node',
+        },
+        {
+          id: 'edge-question-end',
+          source: 'question-node',
+          target: 'end-node',
+        },
+      ],
+    };
+
+    cy.registerUserApi(email, password).then((accessToken) => {
+      cy.createFlowApi(accessToken, {
+        title: flowTitle,
+        description: 'Flow used to test import/export',
+        visibility: 'private',
+        status: 'draft',
+      }).then((flowId) => {
+        cy.saveGraphApi(accessToken, flowId, validGraph);
+
+        cy.loginViaUi(email, password);
+        cy.visit(`/flows/${flowId}`);
+
+        cy.contains(flowTitle).should('exist');
+
+        cy.get('[data-cy="export-flow-button"]').click();
+
+        cy.readFile(`cypress/downloads/${exportFileName}`).then(
+          (exportedFlow) => {
+            cy.visit('/');
+
+            cy.get('[data-cy="import-flow-file-input"]').selectFile(
+              {
+                contents: Cypress.Buffer.from(JSON.stringify(exportedFlow)),
+                fileName: exportFileName,
+                mimeType: 'application/json',
+              },
+              { force: true },
+            );
+
+            cy.get('[data-cy="import-flow-submit"]').click();
+
+            cy.get('[data-cy="success-message"]').should(
+              'contain',
+              'Flow imported successfully.',
+            );
+
+            cy.contains(`${flowTitle} (Imported)`).should('exist');
+          },
         );
       });
     });

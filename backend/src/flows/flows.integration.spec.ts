@@ -62,6 +62,17 @@ type GuardContextMock = {
 
 type FlowResponseBody = {
   id: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+  status: string;
+  ownerId?: string | null;
+  graph: FlowGraph;
+};
+
+type FlowExportResponseBody = {
+  title: string;
+  description?: string | null;
   graph: FlowGraph;
 };
 
@@ -301,5 +312,102 @@ describe('Flows integration', () => {
       .expect(200);
 
     expect(graphAnalysisServiceMock.syncGraphProjection).toHaveBeenCalled();
+  });
+
+  it('API-006 allows a user with access to export a flow', async () => {
+    const owner = await createUser('owner@example.com');
+    const flow = await createOwnedFlow(owner.id);
+
+    currentUserId = owner.id;
+    currentUserEmail = owner.email;
+
+    const response = await request(httpServer)
+      .get(`/flows/${flow.id}/export`)
+      .expect(200);
+
+    const responseBody = response.body as FlowExportResponseBody;
+    const rawResponseBody = response.body as Record<string, unknown>;
+
+    expect(responseBody.title).toBe('Integration test flow');
+    expect(responseBody.description).toBe('Flow used by integration tests');
+    expect(responseBody.graph).toMatchObject(validGraph());
+
+    expect(rawResponseBody.id).toBeUndefined();
+    expect(rawResponseBody.ownerId).toBeUndefined();
+    expect(rawResponseBody.accessList).toBeUndefined();
+    expect(rawResponseBody.sessions).toBeUndefined();
+  });
+
+  it('API-007 imports a valid flow export as a new private draft owned by the current user', async () => {
+    const owner = await createUser('owner@example.com');
+
+    currentUserId = owner.id;
+    currentUserEmail = owner.email;
+
+    const response = await request(httpServer)
+      .post('/flows/import')
+      .send({
+        title: 'Imported source flow',
+        description: 'Flow imported from JSON',
+        graph: validGraph(),
+      })
+      .expect(201);
+
+    const responseBody = response.body as FlowResponseBody;
+
+    expect(responseBody.id).toBeDefined();
+    expect(responseBody.title).toBe('Imported source flow (Imported)');
+    expect(responseBody.description).toBe('Flow imported from JSON');
+    expect(responseBody.visibility).toBe('private');
+    expect(responseBody.status).toBe('draft');
+    expect(responseBody.ownerId).toBe(owner.id);
+    expect(responseBody.graph).toMatchObject(validGraph());
+
+    const storedFlow = await prisma.flow.findUnique({
+      where: {
+        id: responseBody.id,
+      },
+    });
+
+    expect(storedFlow).not.toBeNull();
+    expect(storedFlow?.ownerId).toBe(owner.id);
+    expect(storedFlow?.visibility).toBe('private');
+    expect(storedFlow?.status).toBe('draft');
+    expect(storedFlow?.graph).toMatchObject(validGraph());
+    expect(graphAnalysisServiceMock.syncGraphProjection).toHaveBeenCalledWith(
+      responseBody.id,
+      validGraph(),
+    );
+  });
+
+  it('API-008 rejects import with an invalid graph', async () => {
+    const owner = await createUser('owner@example.com');
+
+    currentUserId = owner.id;
+    currentUserEmail = owner.email;
+
+    const response = await request(httpServer)
+      .post('/flows/import')
+      .send({
+        title: 'Invalid imported flow',
+        description: 'This import should fail',
+        graph: {
+          nodes: [],
+          edges: [],
+        },
+      })
+      .expect(400);
+
+    const responseBody = response.body as ErrorResponseBody;
+
+    expect(responseBody.message).toBe('Imported flow graph validation failed');
+    expect(responseBody.errors).toContain(
+      'Flow must contain at least one node.',
+    );
+
+    const storedFlows = await prisma.flow.findMany();
+
+    expect(storedFlows).toHaveLength(0);
+    expect(graphAnalysisServiceMock.syncGraphProjection).not.toHaveBeenCalled();
   });
 });

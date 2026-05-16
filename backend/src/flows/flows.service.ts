@@ -7,7 +7,12 @@ import {
 import { FlowAccessRole } from '@prisma/client';
 import { GraphAnalysisService } from '../graph-analysis/graph-analysis.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateFlowDto } from './dto/create-flow.dto';
+import {
+  CreateFlowDto,
+  FlowStatus,
+  FlowVisibility,
+} from './dto/create-flow.dto';
+import { ImportFlowDto } from './dto/import-flow.dto';
 import { ShareFlowDto } from './dto/share-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { validateFlowGraph } from './flow-graph-validator';
@@ -124,6 +129,67 @@ export class FlowsService {
         ownerId,
       },
     });
+  }
+
+  async exportFlow(id: string, userId: string) {
+    const flow = await this.findOne(id, userId);
+
+    if (!flow.graph || typeof flow.graph !== 'object') {
+      throw new BadRequestException('Flow does not contain a valid graph.');
+    }
+
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      sourceFlowId: flow.id,
+      title: flow.title,
+      description: flow.description,
+      visibility: flow.visibility,
+      status: flow.status,
+      graph: flow.graph,
+    };
+  }
+
+  async importFlow(importFlowDto: ImportFlowDto, ownerId: string) {
+    const graph = importFlowDto.graph as FlowGraph | undefined;
+
+    if (!graph) {
+      throw new BadRequestException('Imported flow must contain a graph.');
+    }
+
+    const validationErrors = validateFlowGraph(graph);
+
+    if (validationErrors.length > 0) {
+      throw new BadRequestException({
+        message: 'Imported flow graph validation failed',
+        errors: validationErrors,
+      });
+    }
+
+    const importedFlow = await this.prisma.flow.create({
+      data: {
+        title: `${importFlowDto.title} (Imported)`,
+        description: importFlowDto.description,
+        visibility: FlowVisibility.PRIVATE,
+        status: FlowStatus.DRAFT,
+        ownerId,
+        graph,
+      },
+    });
+
+    try {
+      await this.graphAnalysisService.syncGraphProjection(
+        importedFlow.id,
+        graph,
+      );
+    } catch (error) {
+      console.warn(
+        `Imported flow ${importedFlow.id} was saved to PostgreSQL, but Neo4j projection sync failed.`,
+        error,
+      );
+    }
+
+    return importedFlow;
   }
 
   async getFlowAccessList(flowId: string, userId: string) {
