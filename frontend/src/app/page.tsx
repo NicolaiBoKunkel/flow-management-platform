@@ -209,7 +209,7 @@ export default function Home() {
       setSuccessMessage('Flow imported successfully.');
 
       const fileInput = document.querySelector<HTMLInputElement>(
-        '[data-cy="import-flow-file"]',
+        '[data-cy="import-flow-file-input"]',
       );
 
       if (fileInput) {
@@ -364,7 +364,7 @@ export default function Home() {
           </div>
 
           <input
-            data-cy="import-flow-file"
+            data-cy="import-flow-file-input"
             type="file"
             accept="application/json,.json"
             className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white file:mr-4 file:rounded file:border-0 file:bg-blue-700 file:px-3 file:py-1 file:text-white"
